@@ -1,0 +1,14 @@
+# WordPress core (managed by Docker)
+wordpress/wp-content/uploads/
+
+# MySQL data
+mysql/data/
+
+# Backups
+mysql/backups/
+
+# Logs
+*.log
+
+# Docker overrides
+docker-compose.override.yml
