@@ -16,7 +16,7 @@ ps:
 	docker compose ps
 
 backup-db:
-	docker exec wp-mysql mysqldump -u wpuser -pwppass wordpress > mysql/backups/backup_$$(date +%Y%m%d_%H%M%S).sql
+	docker exec wp-mysql mysqldump --no-tablespaces -u wpuser -pwppass wordpress > mysql/backups/backup_$$(date +%Y%m%d_%H%M%S).sql
 
 bash-php:
 	docker exec -it wp-php bash

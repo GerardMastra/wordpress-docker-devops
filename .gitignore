@@ -1,14 +1,25 @@
-# WordPress core (managed by Docker)
-wordpress/wp-content/uploads/
-
-# MySQL data
+# Ignorar bk de bases de datos
 mysql/data/
-
-# Backups
 mysql/backups/
 
-# Logs
-*.log
+# Archivos tuyos (permitidos)
+!wordpress/mkt/
 
-# Docker overrides
-docker-compose.override.yml
+# WordPress core
+wordpress/wp-admin/
+wordpress/wp-includes/
+wordpress/*.php
+
+# wp-content: ignorar todo lo dinámico
+wordpress/wp-content/ai1wm-backups/
+wordpress/wp-content/upgrade/
+wordpress/wp-content/upgrade-temp-backup/
+wordpress/wp-content/uploads/
+wordpress/wp-content/litespeed/
+wordpress/wp-content/object-cache.php
+
+# Mantener lo importante
+!wordpress/wp-content/plugins/
+!wordpress/wp-content/themes/
+!wordpress/wp-content/languages/
+!wordpress/wp-content/index.php

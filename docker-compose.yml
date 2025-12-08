@@ -38,3 +38,13 @@ services:
       PMA_PASSWORD: wppass
     depends_on:
       - mysql
+  
+  wp-cli:
+    image: wordpress:cli
+    container_name: wp-cli
+    depends_on:
+      - php
+      - mysql
+    volumes:
+      - ./wordpress:/var/www/html
+    user: "33:33"
