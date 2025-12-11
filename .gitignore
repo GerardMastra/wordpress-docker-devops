@@ -6,10 +6,10 @@ mysql/backups/
 # Archivos tuyos (permitidos)
 !wordpress/mkt/
 
-# WordPress core
+# WordPress completo — ignorar todo
 wordpress/wp-admin/
 wordpress/wp-includes/
-wordpress/*.php
+wordpress/**/*.php
 
 # wp-content: ignorar todo lo dinámico
 wordpress/wp-content/ai1wm-backups/
@@ -20,7 +20,8 @@ wordpress/wp-content/litespeed/
 wordpress/wp-content/object-cache.php
 
 # Mantener lo importante
+!wordpress/wp-content/
 !wordpress/wp-content/plugins/
 !wordpress/wp-content/themes/
 !wordpress/wp-content/languages/
-!wordpress/wp-content/index.php
+
