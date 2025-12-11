@@ -1,6 +1,7 @@
 # Ignorar bk de bases de datos
 mysql/data/
 mysql/backups/
+!mysql/.gitkeep
 
 # Archivos tuyos (permitidos)
 !wordpress/mkt/
