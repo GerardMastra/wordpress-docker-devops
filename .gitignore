@@ -9,7 +9,7 @@ wordpress/wp-includes/
 wordpress/**/*.php
 
 # Archivos mios (permitidos)
-!wordpress/mkt/default.example.php
+!wordpress/mkt/*.example.php
 
 # wp-content: ignorar todo lo dinámico
 wordpress/wp-content/ai1wm-backups/
