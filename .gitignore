@@ -3,7 +3,7 @@ mysql/data/
 mysql/backups/
 !mysql/.gitkeep
 
-# Archivos tuyos (permitidos)
+# Archivos mios (permitidos)
 !wordpress/mkt/
 
 # WordPress completo — ignorar todo
@@ -17,7 +17,6 @@ wordpress/wp-content/upgrade/
 wordpress/wp-content/upgrade-temp-backup/
 wordpress/wp-content/uploads/
 wordpress/wp-content/litespeed/
-wordpress/wp-content/object-cache.php
 
 # Mantener lo importante
 !wordpress/wp-content/
