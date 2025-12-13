@@ -8,6 +8,10 @@ wordpress/wp-admin/
 wordpress/wp-includes/
 wordpress/**/*.php
 
+# Re-habilitar carpeta mkt
+!wordpress/mkt/
+!wordpress/mkt/**
+
 # Archivos mios (permitidos)
 !wordpress/mkt/*.example.php
 
