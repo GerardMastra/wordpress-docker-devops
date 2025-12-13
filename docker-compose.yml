@@ -3,7 +3,10 @@ services:
     image: wordpress:php8.1-fpm
     container_name: wp-php
     volumes:
-      - ./wordpress:/var/www/html
+      - ./wordpress/wp-content/plugins:/var/www/html/wp-content/plugins
+      - ./wordpress/wp-content/themes:/var/www/html/wp-content/themes
+      - ./wordpress/wp-content/languages:/var/www/html/wp-content/languages
+
 
   nginx:
     image: nginx:latest
