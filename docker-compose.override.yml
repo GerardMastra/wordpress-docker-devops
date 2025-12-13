@@ -1,0 +1,9 @@
+services:
+  php:
+    environment:
+      WORDPRESS_DEBUG: 1
+      WORDPRESS_DEBUG_LOG: 1
+
+  mysql:
+    ports:
+      - "3307:3306"
