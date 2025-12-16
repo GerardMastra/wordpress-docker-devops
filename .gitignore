@@ -1,3 +1,4 @@
+.env
 # ------------------------
 # MySQL
 # ------------------------
@@ -21,10 +22,7 @@ wordpress/mkt/*.php
 # ------------------------
 # wp-content (todo ignorado por defecto)
 # ------------------------
-wordpress/wp-content/*
-!wordpress/wp-content/plugins/
-!wordpress/wp-content/themes/
-!wordpress/wp-content/languages/
+wordpress/wp-content/
 
 # ------------------------
 # Ignorar contenido dinámico

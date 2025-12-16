@@ -2,10 +2,10 @@ services:
   php:
     image: wordpress:php8.1-fpm
     container_name: wp-php
+    env_file:
+      - .env
     volumes:
-      - ./wordpress/wp-content/plugins:/var/www/html/wp-content/plugins
-      - ./wordpress/wp-content/themes:/var/www/html/wp-content/themes
-      - ./wordpress/wp-content/languages:/var/www/html/wp-content/languages
+      - ./wordpress:/var/www/html
 
 
   nginx:
@@ -22,11 +22,13 @@ services:
   mysql:
     image: mysql:5.7
     container_name: wp-mysql
+    env_file:
+      - .env
     environment:
-      MYSQL_ROOT_PASSWORD: rootpass
-      MYSQL_DATABASE: wordpress
-      MYSQL_USER: wpuser
-      MYSQL_PASSWORD: wppass
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
       - ./mysql/data:/var/lib/mysql
 
@@ -35,10 +37,12 @@ services:
     container_name: wp-phpmyadmin
     ports:
       - "8081:80"
+    env_file:
+      - .env
     environment:
       PMA_HOST: mysql
-      PMA_USER: wpuser
-      PMA_PASSWORD: wppass
+      PMA_USER: ${MYSQL_USER}
+      PMA_PASSWORD: ${MYSQL_PASSWORD}
     depends_on:
       - mysql
   
