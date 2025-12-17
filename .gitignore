@@ -1,4 +1,12 @@
+# ------------------------
+# Secrets & keys (NUNCA versionar)
+# ------------------------
 .env
+*.pem
+*token*
+*.key
+docker-compose.override.yml
+
 # ------------------------
 # MySQL
 # ------------------------
@@ -12,23 +20,15 @@ mysql/backups/
 wordpress/wp-admin/
 wordpress/wp-includes/
 wordpress/*.php
+!wordpress/wp-config-sample.php
 
 # ------------------------
-# Archivos personales
+# WordPress archivos personales
 # ------------------------
 wordpress/mkt/*.php
 !wordpress/mkt/*.example.php
 
 # ------------------------
-# wp-content (todo ignorado por defecto)
+# WordPress wp-content (todo ignorado por defecto)
 # ------------------------
 wordpress/wp-content/
-
-# ------------------------
-# Ignorar contenido dinámico
-# ------------------------
-wordpress/wp-content/uploads/
-wordpress/wp-content/upgrade/
-wordpress/wp-content/upgrade-temp-backup/
-wordpress/wp-content/ai1wm-backups/
-wordpress/wp-content/litespeed/
