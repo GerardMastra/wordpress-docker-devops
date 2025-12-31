@@ -6,10 +6,10 @@ services:
       - .env
     environment: # Añado esto para asegurar que WordPress lea las variables correctas.
 # Uso WP en vezde WordPress porque así configure el config.php
-	    WP_DB_HOST: mysql:3306
-	    WP_DB_USER: ${MYSQL_USER}
-	    WP_DB_PASSWORD: ${MYSQL_PASSWORD}
-	WP_DB_NAME: ${MYSQL_DATABASE}
+      WP_DB_HOST: mysql:3306
+      WP_DB_USER: ${MYSQL_USER}
+      WP_DB_PASSWORD: ${MYSQL_PASSWORD}
+      WP_DB_NAME: ${MYSQL_DATABASE}
     volumes:
       - ./wordpress:/var/www/html
 
@@ -46,7 +46,7 @@ services:
       PMA_PASSWORD: ${MYSQL_PASSWORD}
     depends_on:
       - mysql
-  
+
   wp-cli:
     image: wordpress:cli
     container_name: wp-cli
