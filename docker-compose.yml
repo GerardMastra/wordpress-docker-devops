@@ -4,6 +4,12 @@ services:
     container_name: wp-php
     env_file:
       - .env
+    environment: # Añado esto para asegurar que WordPress lea las variables correctas.
+# Uso WP en vezde WordPress porque así configure el config.php
+	    WP_DB_HOST: mysql:3306
+	    WP_DB_USER: ${MYSQL_USER}
+	    WP_DB_PASSWORD: ${MYSQL_PASSWORD}
+	WP_DB_NAME: ${MYSQL_DATABASE}
     volumes:
       - ./wordpress:/var/www/html
 
@@ -12,7 +18,7 @@ services:
     image: nginx:latest
     container_name: wp-nginx
     ports:
-      - "8080:80"
+      - "80:80" # Uso puerto 80 del contenedor en vezde el 8080
     volumes:
       - ./wordpress:/var/www/html
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
@@ -50,3 +56,5 @@ services:
     volumes:
       - ./wordpress:/var/www/html
     user: "33:33"
+    env_file:
+      - .env
