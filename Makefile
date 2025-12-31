@@ -1,22 +1,22 @@
 PROJECT=proyecto-wordpress
 
 up:
-	docker compose up -d
+	docker-compose up -d
 
 down:
-	docker compose down
+	docker-compose down
 
 restart:
-	docker compose down && docker compose up -d
+	docker-compose down && docker-compose up -d
 
 logs:
-	docker compose logs -f
+	docker-compose logs -f
 
 ps:
-	docker compose ps
+	docker-compose ps
 
 backup-db:
-	docker exec wp-mysql mysqldump --no-tablespaces -u wpuser -pwppass wordpress > mysql/backups/backup_$$(date +%Y%m%d_%H%M%S).sql
+	docker exec wp-mysql mysqldump --no-tablespaces -u wpuser -pwppass wordpress > mysql/backups/backup_$$(date +%Y%m%d_%H%>
 
 bash-php:
 	docker exec -it wp-php bash
