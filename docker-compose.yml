@@ -1,0 +1,84 @@
+services:
+  php:
+    image: wordpress:php8.1-fpm
+    container_name: wp-php
+    env_file:
+      - .env
+    environment: # Añado esto para asegurar que WordPress lea las variables correctas.
+# Uso WP en vezde WordPress porque así configure el config.php
+      WP_DB_HOST: mysql:3306
+      WP_DB_USER: ${MYSQL_USER}
+      WP_DB_PASSWORD: ${MYSQL_PASSWORD}
+      WP_DB_NAME: ${MYSQL_DATABASE}
+    volumes:
+      - ./wordpress:/var/www/html
+
+  nginx:
+    image: nginx:latest
+    container_name: wp-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Configuración de Nginx
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      # Archivos de WordPress (importante para que Nginx sirva imágenes/css)
+      - ./wordpress:/var/www/html
+      # Certificados de Let's Encrypt (donde Certbot guardó las llaves)
+      - ./certbot/conf:/etc/letsencrypt:ro
+      # Carpeta para renovaciones de Let's Encrypt
+      - ./certbot/www:/var/www/certbot:ro
+    depends_on:
+      - php
+#    networks:
+#      - wp-network # Asegúrate de que todos los servicios usen la misma red
+
+  mysql:
+    image: mysql:5.7
+    container_name: wp-mysql
+    env_file:
+      - .env
+    volumes:
+      - ./mysql/data:/var/lib/mysql
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: wp-phpmyadmin
+    ports:
+      - "8081:80"
+    env_file:
+      - .env
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: ${MYSQL_USER}
+      PMA_PASSWORD: ${MYSQL_PASSWORD}
+    depends_on:
+      - mysql
+
+  wp-cli:
+    image: wordpress:cli
+    container_name: wp-cli
+    depends_on:
+      - php
+      - mysql
+    volumes:
+      - ./wordpress:/var/www/html
+    user: "33:33"
+    env_file:
+      - .env
+    environment:
+      WP_DB_HOST: mysql:3306
+      WP_DB_USER: ${MYSQL_USER}
+      WP_DB_PASSWORD: ${MYSQL_PASSWORD}
+      WP_DB_NAME: ${MYSQL_DATABASE}
+
+  # No olvides el servicio Certbot para la auto-renovación
+  certbot:
+    image: certbot/certbot
+    container_name: wp-certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    # Este comando revisa cada 12 horas si el certificado debe renovarse
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
