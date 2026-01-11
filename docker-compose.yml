@@ -31,8 +31,6 @@ services:
       - ./certbot/www:/var/www/certbot:ro
     depends_on:
       - php
-#    networks:
-#      - wp-network # Asegúrate de que todos los servicios usen la misma red
 
   mysql:
     image: mysql:5.7
