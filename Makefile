@@ -23,3 +23,15 @@ bash-php:
 
 bash-nginx:
 	docker exec -it wp-nginx bash
+ssl-init:
+	@echo "▶️ Inicializando certificados SSL con Let's Encrypt..."
+	docker-compose up -d nginx
+	docker-compose run --rm certbot certonly \
+	  --webroot \
+	  --webroot-path=/var/www/certbot \
+	  --email tu-email@dominio.com \
+	  --agree-tos \
+	  --no-eff-email \
+	  -d gerardo-devops-wp.duckdns.org
+	@echo "✅ Certificado SSL creado correctamente"
+
