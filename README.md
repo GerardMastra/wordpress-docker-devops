@@ -221,7 +221,7 @@ Se evita sobre-automatizar en esta etapa para:
 
 ## 👤 Autor
 
-**Gerard Mastra**
+**Gerardo Angel Mastramico**
 DevOps Junior
 GitHub: <https://github.com/GerardMastra>
 
