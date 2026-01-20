@@ -1,156 +1,227 @@
-# 🚀 Enterprise WordPress Cloud Deployment  
+# 🐳 WordPress en Docker desplegado en AWS Lightsail
 
-## Security & DevOps Focus
+Proyecto DevOps Junior que demuestra el despliegue de una aplicación **WordPress real** utilizando **Docker Compose**, con **persistencia de datos**, **restauración desde S3** y ejecución en **AWS Lightsail**.
 
-Este proyecto demuestra un **despliegue profesional de WordPress en la nube**, utilizando contenedores Docker y prácticas DevOps reales, con un fuerte enfoque en **seguridad (hardening)**, **automatización** e **infraestructura reproducible**.
+El foco del proyecto está en:
 
-🌐 **URL Pública:**  
-<https://gerardo-devops-wp.duckdns.org>
+- reproducibilidad
+- separación de responsabilidades
+- operación manual consciente (bootstrap)
+- documentación clara
+
+🌐 **URL pública (entorno demo):**  
+<http://gerardo-devops-wp.duckdns.org>
+
+> ⚠️ Al utilizar DNS dinámico (DuckDNS), pueden existir intermitencias propias del proveedor.
 
 ---
 
-## 🛠 Stack Tecnológico
+## 🛠 Stack tecnológico
 
-- **Cloud:** AWS Lightsail / EC2 y Oracle Cloud (Always Free Tier)
+- **Cloud:** AWS Lightsail
+- **Almacenamiento:** Amazon S3
 - **Contenedores:** Docker & Docker Compose
-- **Reverse Proxy:** Nginx Proxy Manager
-- **SSL/TLS:** Let’s Encrypt (certificados automáticos)
-- **Base de Datos:** MySQL (persistencia mediante volúmenes)
+- **Web Server:** Nginx
+- **Aplicación:** WordPress (PHP-FPM)
+- **Base de Datos:** MySQL
+- **CLI:** wp-cli
 - **DNS Dinámico:** DuckDNS
-- **Sistema Operativo:** Ubuntu Server
+- **SO:** Ubuntu Server
+- **Automatización ligera:** Makefile
 
 ---
 
-## 🔒 Seguridad & Hardening Aplicado
+## 🏗 Arquitectura
 
-Este proyecto va más allá de un despliegue estándar de WordPress e incorpora medidas de seguridad típicas de entornos productivos.
+El proyecto se ejecuta completamente en contenedores Docker:
 
-### 1️⃣ Bastionado del Host (SSH Hardening)
+- `wp-nginx` → servidor web
+- `wp-php` → PHP-FPM (WordPress)
+- `wp-mysql` → base de datos MySQL (persistente)
+- `wp-cli` → gestión WordPress vía CLI
+- `phpMyAdmin` → administración de base de datos
 
-- **Cambio de Puerto SSH:** de 22 a **2222**, reduciendo ataques automatizados.
-- **Autenticación por Llave:** acceso SSH exclusivo mediante claves RSA/PEM.
-- **Fail2Ban:** sistema de prevención de intrusos que bloquea IPs tras múltiples intentos fallidos.
+Persistencia mediante volúmenes Docker para:
 
-### 2️⃣ Seguridad de Red
+- base de datos MySQL
+- archivos WordPress (`wp-content`)
 
-- **Principio de Menor Privilegio:**  
-  El firewall permite acceso SSH y phpMyAdmin únicamente desde mi IP pública.
-- **Aislamiento de Servicios:**  
-  MySQL no expone puertos al exterior; la comunicación se realiza exclusivamente dentro de la red interna de Docker.
-
-### 3️⃣ Endurecimiento de WordPress
-
-- **Protección de `wp-config.php`:**  
-  Edición de archivos deshabilitada desde el panel (`DISALLOW_FILE_EDIT`).
-- **Sanitización de Base de Datos:**  
-  Dumps SQL sin información sensible y usuario administrativo genérico.
+Los artefactos de bootstrap (WordPress y dump SQL) se almacenan en **Amazon S3**.
 
 ---
 
-## 🏗 Arquitectura del Proyecto
+## 🚀 Despliegue paso a paso
 
-La arquitectura está organizada en capas claramente separadas:
+### 1️⃣ Acceso a la instancia Lightsail
 
-1. **Proxy Layer**  
-   Nginx Proxy Manager gestiona el tráfico HTTP/HTTPS y certificados SSL.
-2. **Application Layer**  
-   WordPress ejecutándose sobre PHP-FPM dentro de contenedores.
-3. **Data Layer**  
-   MySQL con persistencia de datos mediante volúmenes Docker.
+```bash
+ssh -i ~/.ssh/LightsailDefaultKey-us-east-1-pd.pem ubuntu@44.220.98.235
+```
 
-## 🚀 Despliegue del Proyecto
-
-### 1️⃣ Clonar el repositorio
+### 2️⃣ Clonar el repositorio
 
 ```bash
 git clone https://github.com/GerardMastra/wordpress-docker-devops.git
 cd wordpress-docker-devops
 ```
 
-### 2️⃣ Inicialización del servidor (Bootstrap)
+### 3️⃣ Bootstrap del servidor
 
-El proyecto incluye un script de inicialización (bootstrap) para preparar una instancia Ubuntu desde cero.
+El proyecto incluye un script de bootstrap para preparar una instancia Ubuntu desde cero.
 
 Este script:
 
-- **Actualiza el sistema**
-- **Instala Docker**
-- **Instala Docker Compose**
-- **Habilita y levanta el servicio Docker**
+- actualiza el sistema
+- instala Docker
+- instala Docker Compose
+- habilita el servicio Docker
 
-Archivo:
-
-``` bash
-scripts/bootstrap.sh
-```
-
-Ejecución:
-
-``` bash
+```bash
 chmod +x scripts/bootstrap.sh
 sudo ./scripts/bootstrap.sh
 ```
 
-El mismo script puede utilizarse como User Data al crear una instancia en AWS Lightsail u otra nube compatible.
+### 4️⃣ Configuración inicial
 
-### 3️⃣ Configuración de variables de entorno
-
-Crear un archivo .env basado en .env.example con las credenciales necesarias.
-
-### 4️⃣ Levantar la infraestructura
-
-``` bash
-docker-compose up -d
-```
-
-### 5️⃣ Restaurar Base de Datos (opcional)
-
-Cargar el dump SQL sanitizado dentro del contenedor MySQL.
-
-## 🧰 Automatización con Makefile
-
-El proyecto incluye un `Makefile` para simplificar y estandarizar las tareas
-más comunes del entorno.
-
-Ejemplos de comandos disponibles:
+Copiar archivos base de configuración:
 
 ```bash
-make up        # Levanta la infraestructura
+cp .env.example .env
+cp wordpress/wp-config-sample.php wordpress/wp-config.php
+```
+
+Agregar el usuario ubuntu al grupo Docker y reconectar:
+
+```bash
+sudo usermod -aG docker ubuntu
+exit
+```
+
+Volver a ingresar por SSH.
+
+### 5️⃣ Instalación de dependencias auxiliares
+
+```bash
+sudo apt install make
+```
+
+### 6️⃣ Inicialización SSL y despliegue
+
+```bash
+make ssl-init
+make ssl-https
+make up
+```
+
+### 🔁 Restauración desde S3 (Bootstrap manual)
+#### 📦 Restaurar archivos WordPress
+
+```bash
+aws s3 cp \
+s3://gerardo-devops-wp-bootstrap/bootstrap/wordpress/wordpress-bootstrap.tar.gz \
+/home/ubuntu/wordpress-docker-devops/wordpress/
+
+cd ~/wordpress-docker-devops/wordpress
+tar -xzf wordpress-bootstrap.tar.gz
+```
+
+Ajustar permisos:
+
+```bash
+sudo chown -R ubuntu:ubuntu ~/wordpress-docker-devops/wordpress
+sudo find ~/wordpress-docker-devops/wordpress -type d -exec chmod 755 {} \;
+sudo find ~/wordpress-docker-devops/wordpress -type f -exec chmod 644 {} \;
+```
+
+#### 🗄 Restaurar base de datos MySQL
+
+```bash
+mkdir -p ~/wordpress-docker-devops/mysql/backups
+aws s3 cp \
+s3://gerardo-devops-wp-bootstrap/bootstrap/mysql/dump.sql \
+~/wordpress-docker-devops/mysql/backups/dump.sql
+```
+
+Reiniciar stack:
+
+```bash
+make down
+make up
+```
+
+Importar base de datos:
+
+```bash
+docker exec -i wp-mysql mysql -u root -pchangeme_root wordpress ~/wordpress-docker-devops/mysql/backups/dump.sql
+```
+
+Ajustar permisos del volumen MySQL:
+
+```bash
+sudo chown -R 999:999 mysql/data
+docker restart wp-mysql
+```
+
+### 🧩 Gestión de WordPress vía wp-cli
+
+Desactivar plugins:
+
+```bash
+docker-compose run --rm wp-cli wp plugin deactivate --all
+```
+
+Instalar plugins:
+
+```bash
+docker-compose run --rm wp-cli wp plugin install meta-box contact-form-7
+docker-compose run --rm wp-cli wp plugin activate elementor zilom-themer meta-box contact-form-7
+docker-compose run --rm wp-cli wp plugin update --all
+
+sudo chown -R 33:33 ~/wordpress-docker-devops/wordpress
+```
+
+> Nota: se utiliza `docker-compose` explícito para wp-cli por claridad operativa.
+
+### 🧰 Makefile
+
+El proyecto incluye un Makefile para estandarizar operaciones comunes:
+
+```bash
+make up        # Levanta el stack
 make down      # Detiene los contenedores
-make logs      # Muestra logs de los servicios
-make restart   # Reinicia el stack
+make restart   # Reinicia servicios
+make logs      # Muestra logs
+make ps        # Estado de contenedores
 ```
 
-Los comandos del Makefile encapsulan llamadas a docker-compose para
-mejorar la experiencia operativa y reducir errores manuales.
+### 🧠 Decisiones técnicas
 
-✔️ Claro  
-✔️ Corto  
-✔️ Profesional  
-✔️ No invasivo  
+El bootstrap es manual a propósito.
 
----
+Se evita sobre-automatizar en esta etapa para:
 
-### 🔹 Opción mínima (si querés ultra simple)
+- mantener claridad
+- facilitar debugging
+- separar bootstrap de runtime
+- abordar automatización completa en proyectos posteriores (CI/CD).
 
-```md
-> El proyecto incluye un `Makefile` con atajos para las tareas más comunes de Docker Compose.
-```
+### 📌 Estado del proyecto
 
-## 📄 Notas de Mantenimiento
+- ✔ Funcional
+- ✔ Documentado
+- ✔ Reproducible
+- ✔ Apto para portfolio DevOps Junior
 
-El repositorio incluye un .gitignore optimizado para evitar la subida de:
+### 🔜 Próximas mejoras (fase 2)
 
-- **variables sensibles (.env)**
-- **datos persistentes de base de datos**
-- **La infraestructura es 100% portable entre distintos proveedores cloud.**
-- **El proyecto está pensado como base para entornos productivos, no solo de desarrollo.**
+- Hardening del host (SSH, firewall)
+- Backups automáticos a S3
+- CI/CD con GitHub Actions
+- Monitoreo con Prometheus & Grafana
 
-## 🎯 Objetivo del Proyecto
+## 👤 Autor
 
-Este proyecto forma parte de mi portfolio DevOps, con foco en:
+**Gerard Mastra**
+DevOps Junior
+GitHub: <https://github.com/GerardMastra>
 
-- **automatización**
-- **seguridad**
-- **buenas prácticas de despliegue**
-- **operación de servicios en la nube**
