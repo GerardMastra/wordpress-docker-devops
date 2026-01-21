@@ -117,6 +117,14 @@ make up
 ### 🔁 Restauración desde S3 (Bootstrap manual)
 #### 📦 Restaurar archivos WordPress
 
+Ajustar permisos:
+
+```bash
+sudo chown -R ubuntu:ubuntu ~/wordpress-docker-devops/wordpress
+sudo find ~/wordpress-docker-devops/wordpress -type d -exec chmod 755 {} \;
+sudo find ~/wordpress-docker-devops/wordpress -type f -exec chmod 644 {} \;
+```
+
 ```bash
 aws s3 cp \
 s3://gerardo-devops-wp-bootstrap/bootstrap/wordpress/wordpress-bootstrap.tar.gz \
@@ -124,14 +132,6 @@ s3://gerardo-devops-wp-bootstrap/bootstrap/wordpress/wordpress-bootstrap.tar.gz 
 
 cd ~/wordpress-docker-devops/wordpress
 tar -xzf wordpress-bootstrap.tar.gz
-```
-
-Ajustar permisos:
-
-```bash
-sudo chown -R ubuntu:ubuntu ~/wordpress-docker-devops/wordpress
-sudo find ~/wordpress-docker-devops/wordpress -type d -exec chmod 755 {} \;
-sudo find ~/wordpress-docker-devops/wordpress -type f -exec chmod 644 {} \;
 ```
 
 #### 🗄 Restaurar base de datos MySQL
