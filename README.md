@@ -102,6 +102,7 @@ Volver a ingresar por SSH.
 ### 5️⃣ Instalación de dependencias auxiliares
 
 ```bash
+cd ~/wordpress-docker-devops/
 sudo apt install make
 ```
 
