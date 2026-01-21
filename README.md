@@ -126,21 +126,18 @@ sudo find ~/wordpress-docker-devops/wordpress -type f -exec chmod 644 {} \;
 ```
 
 ```bash
-aws s3 cp \
-s3://gerardo-devops-wp-bootstrap/bootstrap/wordpress/wordpress-bootstrap.tar.gz \
-/home/ubuntu/wordpress-docker-devops/wordpress/
-
-cd ~/wordpress-docker-devops/wordpress
-tar -xzf wordpress-bootstrap.tar.gz
+aws s3 cp s3://gerardo-devops-wp-bootstrap/bootstrap/wordpress/wp-content.tar.gz /tmp/
+tar -xzf /tmp/wp-content.tar.gz -C /home/ubuntu/wordpress-docker-devops/wordpress/
+sudo chown -R 33:33 ~/wordpress-docker-devops/wordpress
 ```
 
 #### 🗄 Restaurar base de datos MySQL
 
 ```bash
-mkdir -p ~/wordpress-docker-devops/mysql/backups
-aws s3 cp \
-s3://gerardo-devops-wp-bootstrap/bootstrap/mysql/dump.sql \
-~/wordpress-docker-devops/mysql/backups/dump.sql
+sudo chown -R ubuntu:ubuntu mysql
+aws s3 cp s3://gerardo-devops-wp-bootstrap/bootstrap/mysql/mysql-bootstrap.tar.gz /tmp/
+tar -xzf /tmp/mysql-bootstrap.tar.gz -C /home/ubuntu/wordpress-docker-devops/mysql/
+sudo chown -R 999:999 mysql/data
 ```
 
 Reiniciar stack:
@@ -153,14 +150,7 @@ make up
 Importar base de datos:
 
 ```bash
-docker exec -i wp-mysql mysql -u root -pchangeme_root wordpress ~/wordpress-docker-devops/mysql/backups/dump.sql
-```
-
-Ajustar permisos del volumen MySQL:
-
-```bash
-sudo chown -R 999:999 mysql/data
-docker restart wp-mysql
+docker exec -i wp-mysql mysql -u root -pchangeme_root wordpress < ~/wordpress-docker-devops/mysql/backups/dump.sql
 ```
 
 ### 🧩 Gestión de WordPress vía wp-cli
@@ -177,8 +167,6 @@ Instalar plugins:
 docker-compose run --rm wp-cli wp plugin install meta-box contact-form-7
 docker-compose run --rm wp-cli wp plugin activate elementor zilom-themer meta-box contact-form-7
 docker-compose run --rm wp-cli wp plugin update --all
-
-sudo chown -R 33:33 ~/wordpress-docker-devops/wordpress
 ```
 
 > Nota: se utiliza `docker-compose` explícito para wp-cli por claridad operativa.
