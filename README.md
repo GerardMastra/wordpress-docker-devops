@@ -1,13 +1,15 @@
 # 🐳 WordPress en Docker desplegado en AWS Lightsail
 
-Proyecto DevOps Junior que demuestra el despliegue de una aplicación **WordPress real** utilizando **Docker Compose**, con **persistencia de datos**, **restauración desde S3** y ejecución en **AWS Lightsail**.
+## Versión: v1.0.0 – Functional Cloud Deployment
+
+Proyecto **DevOps Junior** que demuestra el despliegue **end-to-end** de una aplicación **WordPress real** utilizando **Docker Compose**, con **persistencia de datos**, **restauración manual desde S3** y ejecución en **AWS Lightsail**.
 
 El foco del proyecto está en:
 
-- reproducibilidad
-- separación de responsabilidades
-- operación manual consciente (bootstrap)
-- documentación clara
+- reproducibilidad del entorno  
+- separación clara de responsabilidades  
+- operación manual consciente (bootstrap)  
+- documentación detallada y trazable  
 
 🌐 **URL pública (entorno demo):**  
 <http://gerardo-devops-wp.duckdns.org>
@@ -16,18 +18,26 @@ El foco del proyecto está en:
 
 ---
 
+## 🎯 Objetivo de la versión v1.0.0
+
+> **Demostrar arquitectura, criterio técnico y que el sistema funciona de punta a punta en la nube.**
+
+Esta versión está diseñada para mostrar **fundamentos sólidos de DevOps**, evitando complejidad innecesaria o sobre-automatización prematura.
+
+---
+
 ## 🛠 Stack tecnológico
 
-- **Cloud:** AWS Lightsail
-- **Almacenamiento:** Amazon S3
-- **Contenedores:** Docker & Docker Compose
-- **Web Server:** Nginx
-- **Aplicación:** WordPress (PHP-FPM)
-- **Base de Datos:** MySQL
-- **CLI:** wp-cli
-- **DNS Dinámico:** DuckDNS
-- **SO:** Ubuntu Server
-- **Automatización ligera:** Makefile
+- **Cloud:** AWS Lightsail  
+- **Almacenamiento:** Amazon S3  
+- **Contenedores:** Docker & Docker Compose  
+- **Web Server:** Nginx  
+- **Aplicación:** WordPress (PHP-FPM)  
+- **Base de Datos:** MySQL  
+- **CLI:** wp-cli  
+- **DNS Dinámico:** DuckDNS  
+- **SO:** Ubuntu Server  
+- **Automatización ligera:** Makefile  
 
 ---
 
@@ -35,18 +45,18 @@ El foco del proyecto está en:
 
 El proyecto se ejecuta completamente en contenedores Docker:
 
-- `wp-nginx` → servidor web
-- `wp-php` → PHP-FPM (WordPress)
-- `wp-mysql` → base de datos MySQL (persistente)
-- `wp-cli` → gestión WordPress vía CLI
-- `phpMyAdmin` → administración de base de datos
+- `wp-nginx` → servidor web  
+- `wp-php` → PHP-FPM (WordPress)  
+- `wp-mysql` → base de datos MySQL (persistente)  
+- `wp-cli` → gestión de WordPress vía CLI  
+- `phpMyAdmin` → administración de base de datos  
 
-Persistencia mediante volúmenes Docker para:
+La persistencia se logra mediante **volúmenes Docker** para:
 
-- base de datos MySQL
-- archivos WordPress (`wp-content`)
+- datos de MySQL  
+- archivos de WordPress (`wp-content`)  
 
-Los artefactos de bootstrap (WordPress y dump SQL) se almacenan en **Amazon S3**.
+Los artefactos de bootstrap (archivos WordPress y dumps SQL) se almacenan en **Amazon S3** y se restauran manualmente como parte del proceso operativo.
 
 ---
 
@@ -115,6 +125,7 @@ make up
 ```
 
 ### 🔁 Restauración desde S3 (Bootstrap manual)
+
 #### 📦 Restaurar archivos WordPress
 
 Ajustar permisos:
@@ -201,16 +212,26 @@ Se evita sobre-automatizar en esta etapa para:
 - ✔ Reproducible
 - ✔ Apto para portfolio DevOps Junior
 
-### 🔜 Próximas mejoras (fase 2)
+Tag sugerido: v1.0.0
 
-- Hardening del host (SSH, firewall)
-- Backups automáticos a S3
-- CI/CD con GitHub Actions
-- Monitoreo con Prometheus & Grafana
+### 🔜 Roadmap (versiones futuras)
+
+#### v1.1 – Security & Hardening
+
+- Hardening SSH
+- Firewall (UFW)
+- Fail2Ban
+- Ajustes de seguridad en WordPress
+
+#### v1.2 – Automation & DX
+
+- Deploy en un solo comando
+- Healthchecks
+- Validaciones post-deploy
+- Mejor experiencia operativa
 
 ## 👤 Autor
 
 **Gerardo Angel Mastramico**
 DevOps Junior
 GitHub: <https://github.com/GerardMastra>
-
