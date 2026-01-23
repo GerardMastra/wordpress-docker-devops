@@ -1,344 +1,25 @@
-# 🐳 WordPress en Docker desplegado en AWS Lightsail — **Versión 2 (Hardening)**
-
-Proyecto **DevOps Junior** que demuestra el despliegue de una aplicación **WordPress real** utilizando **Docker Compose**, ejecutada en **AWS Lightsail**, con **persistencia de datos**, **restauración desde S3** y **hardening de seguridad aplicado** tanto en **host**, **Docker** como en **WordPress**.
-
-Esta **V2** consolida el proyecto como una **plantilla segura y reproducible**, pensada para entornos pequeños (512MB–1GB) pero alineada con **buenas prácticas profesionales**.
-
----
-
-## 🎯 Objetivos del proyecto
-
-* Reproducibilidad del entorno
-* Separación clara de responsabilidades
-* Bootstrap **manual y consciente** (no magia oculta)
-* Seguridad integrada desde el código (Security by Design)
-* Documentación clara y auditable
-
-🌐 **URL pública (entorno demo):**
-[http://gerardo-devops-wp.duckdns.org](http://gerardo-devops-wp.duckdns.org)
-
-> ⚠️ Al utilizar DNS dinámico (DuckDNS), pueden existir intermitencias propias del proveedor.
-
----
-
-## 🛠 Stack tecnológico
-
-* **Cloud:** AWS Lightsail
-* **Almacenamiento:** Amazon S3
-* **Contenedores:** Docker & Docker Compose (plugin)
-* **Web Server:** Nginx
-* **Aplicación:** WordPress (PHP-FPM)
-* **Base de Datos:** MySQL 5.7
-* **CLI:** wp-cli
-* **DNS Dinámico:** DuckDNS
-* **SO:** Ubuntu Server
-* **Automatización ligera:** Makefile
-* **Seguridad Host:** UFW, Fail2Ban, SSH Hardening
-
----
-
-## 🏗 Arquitectura
-
-El proyecto se ejecuta completamente en contenedores Docker:
-
-* `wp-nginx` → servidor web (reverse proxy)
-* `wp-php` → PHP-FPM (WordPress)
-* `wp-mysql` → base de datos MySQL (persistente)
-* `wp-cli` → gestión WordPress vía CLI (perfil tools)
-* `phpMyAdmin` → administración DB (solo acceso local)
-* `certbot` → emisión y renovación de certificados SSL
-
-### Persistencia
-
-* Volumen MySQL (`./mysql/data`)
-* Archivos WordPress (`./wordpress`, incluyendo `wp-content`)
-
-### Bootstrap externo
-
-Los artefactos iniciales se almacenan en **Amazon S3**:
-
-* `wp-content.tar.gz`
-* `mysql-bootstrap.tar.gz`
-
----
-
-## 🔐 Hardening aplicado (Resumen)
-
-### Host / Sistema Operativo
-
-* Actualización completa del sistema (`apt full-upgrade`)
-* Docker instalado desde **repositorios oficiales** (no `docker.io`)
-* Verificación de firmas GPG
-* Firewall UFW por defecto **deny incoming**
-* SSH:
-
-  * Puerto no estándar (2222)
-  * Login por clave pública
-  * Root deshabilitado
-* Fail2Ban activo sobre SSH
-* Mensaje MOTD de advertencia
-
-### Docker / Infraestructura
-
-* Variables sensibles externalizadas (`.env` + `.gitignore`)
-* Límites de memoria por contenedor
-* `no-new-privileges:true`
-* Contenedores `read_only` cuando aplica
-* `tmpfs` para paths temporales
-* phpMyAdmin accesible **solo desde localhost**
-* Servicios auxiliares bajo `profiles: tools`
-
-### WordPress
-
-* Edición de archivos deshabilitada desde el panel
-* Permisos restrictivos en archivos críticos
-* Gestión de plugins vía `wp-cli`
-
----
-
-## 🔐 Hardening Host — Pasos detallados y comandos
-
-> Esta sección **documenta explícitamente** los cambios manuales aplicados en el servidor.
-> No se automatizan a propósito para reforzar control, comprensión y trazabilidad.
-
----
-
-### 🔑 Hardening de SSH
-
-#### 0️⃣ Capa Cloud — AWS Lightsail (obligatorio)
-
-> Este paso se realiza **fuera del servidor**, en la consola de AWS Lightsail.
-
-En **Networking → Firewall**:
-
-* Add rule
-* Application: `Custom`
-* Protocol: `TCP`
-* Port: `2222`
-
-📌 Este paso es **imprescindible**: aunque el servidor esté bien configurado, si el puerto no está abierto en la capa cloud, el acceso SSH fallará.
-
----
-
-#### 1️⃣ Editar configuración del daemon SSH
-
-```bash
-sudo nano /etc/ssh/sshd_config
-```
-
-Configuración aplicada (mínimo seguro):
-
-```conf
-Port 2222
-PermitRootLogin no
-PasswordAuthentication no
-PubkeyAuthentication yes
-UsePAM yes
-```
-
-> ⚠️ Verificar que **no exista otro `Port 22` más abajo** en el archivo.
-
----
-
-#### 🔒 Hardening adicional de SSH (opcional, recomendado)
-
-Estas directivas **no son estrictamente necesarias para un entorno demo**, pero se documentan como **siguiente escalón de seguridad**:
-
-```conf
-MaxAuthTries 3
-LoginGraceTime 30
-AllowUsers ubuntu
-```
-
-🔎 Motivo de su carácter opcional:
-
-* Pueden bloquear accesos legítimos si no se entienden
-* `AllowUsers` debe mantenerse sincronizado con usuarios reales
-* Se priorizó claridad y accesibilidad en la V2
-
----
-
-#### 2️⃣ Validar configuración SSH antes de reiniciar
-
-```bash
-sudo sshd -t
-```
-
-✔️ Sin salida = configuración válida
-❌ Con errores = **NO reiniciar SSH**
-
----
-
-#### 3️⃣ Abrir puerto SSH en UFW (Host)
-
-```bash
-sudo ufw allow 2222/tcp
-```
-
----
-
-#### 4️⃣ Reiniciar servicio SSH (sshd)
-
-```bash
-sudo systemctl restart ssh
-```
-
----
-
-#### 5️⃣ Probar conexión SSH desde cliente
-
-Desde otra terminal local:
-
-```bash
-ssh -i ~/.ssh/LightsailDefaultKey.pem ubuntu@IP_PUBLICA -p 2222
-```
-
-> Solo después de confirmar acceso exitoso se puede cerrar el puerto 22.
-
----
-
-**Checklist de verificación final (post-configuración):**
-
-* 6️⃣ **Validar configuración antes de reiniciar** (`sshd -t`)
-* 7️⃣ **Abrir puerto SSH en UFW** (permitir 2222/tcp)
-* 8️⃣ **Reiniciar servicio SSH** (`systemctl restart ssh`)
-* 9️⃣ **Probar conexión desde otra terminal**
-
-```bash
-ssh -i ~/.ssh/LightsailDefaultKey.pem ubuntu@IP_PUBLICA -p 2222
-```
-
-> Solo después de confirmar acceso exitoso se puede cerrar el puerto 22.
-
----
-
-### 🚨 Fail2Ban — Protección contra fuerza bruta
-
-#### 1️⃣ Instalación
-
-```bash
-sudo apt update
-sudo apt install fail2ban -y
-```
-
----
-
-#### 2️⃣ Crear configuración mínima (`jail.local`)
-
-```bash
-sudo nano /etc/fail2ban/jail.local
-```
-
-Contenido aplicado:
-
-```ini
-[DEFAULT]
-bantime  = 1h
-findtime = 10m
-maxretry = 3
-backend  = systemd
-
-[sshd]
-enabled  = true
-port     = 2222
-logpath  = %(sshd_log)s
-```
-
----
-
-#### 3️⃣ Validar sintaxis (paso crítico)
-
-```bash
-sudo fail2ban-client -d
-```
-
-✔️ Sin errores → continuar
-❌ Con errores → corregir antes de seguir
-
----
-
-#### 4️⃣ Habilitar y arrancar Fail2Ban
-
-```bash
-sudo systemctl enable fail2ban
-sudo systemctl restart fail2ban
-```
-
----
-
-#### 5️⃣ Verificar estado
-
-```bash
-sudo fail2ban-client status
-sudo fail2ban-client status sshd
-```
-
-Salida esperada:
-
-```text
-Status for the jail: sshd
-|- Filter
-|  |- Currently failed: 0
-|  |- Total failed: 0
-|- Actions
-|  |- Currently banned: 0
-|  |- Total banned: 0
-```
-
----
-
-#### 6️⃣ Test opcional
-
-* Intentar login SSH erróneo 3 veces
-* Ver IP baneada:
-
-```bash
-sudo fail2ban-client status sshd
-```
-
----
-
-### 🖥️ Mensaje de bienvenida (MOTD)
-
-```bash
-sudo nano /etc/motd
-```
-
-Contenido:
-
-```text
-###############################################################
-#  SISTEMA WP-DOCKER HARDENED — ACCESO RESTRINGIDO             #
-#  Todo acceso es monitoreado (Fail2Ban + UFW)                #
-#  Puerto SSH: 2222                                           #
-###############################################################
-```
-
----
-
-## 🚀 Despliegue paso a paso
-
-### 1️⃣ Acceso a la instancia
-
-```bash
-ssh -i ~/.ssh/LightsailDefaultKey.pem ubuntu@IP_PUBLICA -p 2222
-```
-
----
-
-=======
 # 🐳 WordPress en Docker desplegado en AWS Lightsail
 
-Proyecto DevOps Junior que demuestra el despliegue de una aplicación **WordPress real** utilizando **Docker Compose**, con **persistencia de datos**, **restauración desde S3** y ejecución en **AWS Lightsail**.
+## Versión: v1.1.1 – Security & Hardening Upgrade
 
-El foco del proyecto está en:
+Proyecto **DevOps Junior** que demuestra el despliegue de una aplicación **WordPress real** utilizando **Docker Compose**, ejecutada en **AWS Lightsail**, con **persistencia de datos**, **restauración desde S3** y **mejoras de seguridad aplicadas** en el **host**, la **infraestructura Docker** y **WordPress**.
 
-- reproducibilidad
-- separación de responsabilidades
-- operación manual consciente (bootstrap)
-- documentación clara
+Esta versión es una **evolución directa de la v1.0.1**, orientada a demostrar **conciencia de seguridad en un entorno tipo producción**, sin perder claridad ni simplicidad operativa.
 
-🌐 **URL pública (entorno demo):**  
+---
+
+## 🎯 Objetivo de la versión v1.1.1
+
+> **Demostrar conciencia de seguridad y criterio profesional en un entorno cloud pequeño, sin sobre-automatización.**
+
+🧠 **Importante:**  
+Esta versión **no es obligatoria para presentar el proyecto**, sino una **mejora incremental natural** sobre la v1.0.1
+
+---
+
+## 🌐 Entorno demo
+
+**URL pública:**  
 <http://gerardo-devops-wp.duckdns.org>
 
 > ⚠️ Al utilizar DNS dinámico (DuckDNS), pueden existir intermitencias propias del proveedor.
@@ -347,16 +28,17 @@ El foco del proyecto está en:
 
 ## 🛠 Stack tecnológico
 
-- **Cloud:** AWS Lightsail
-- **Almacenamiento:** Amazon S3
-- **Contenedores:** Docker & Docker Compose
-- **Web Server:** Nginx
-- **Aplicación:** WordPress (PHP-FPM)
-- **Base de Datos:** MySQL
-- **CLI:** wp-cli
-- **DNS Dinámico:** DuckDNS
-- **SO:** Ubuntu Server
-- **Automatización ligera:** Makefile
+- **Cloud:** AWS Lightsail  
+- **Almacenamiento:** Amazon S3  
+- **Contenedores:** Docker & Docker Compose (plugin)  
+- **Web Server:** Nginx  
+- **Aplicación:** WordPress (PHP-FPM)  
+- **Base de Datos:** MySQL 5.7  
+- **CLI:** wp-cli  
+- **DNS Dinámico:** DuckDNS  
+- **SO:** Ubuntu Server  
+- **Automatización ligera:** Makefile  
+- **Seguridad Host:** UFW, Fail2Ban, SSH Hardening  
 
 ---
 
@@ -364,183 +46,84 @@ El foco del proyecto está en:
 
 El proyecto se ejecuta completamente en contenedores Docker:
 
-- `wp-nginx` → servidor web
-- `wp-php` → PHP-FPM (WordPress)
-- `wp-mysql` → base de datos MySQL (persistente)
-- `wp-cli` → gestión WordPress vía CLI
-- `phpMyAdmin` → administración de base de datos
+- `wp-nginx` → servidor web (reverse proxy)  
+- `wp-php` → PHP-FPM (WordPress)  
+- `wp-mysql` → base de datos MySQL (persistente)  
+- `wp-cli` → gestión WordPress vía CLI  
+- `phpMyAdmin` → administración de base de datos (**solo acceso local**)  
 
-Persistencia mediante volúmenes Docker para:
+### Persistencia
 
-- base de datos MySQL
-- archivos WordPress (`wp-content`)
+- Datos MySQL: `./mysql/data`  
+- Archivos WordPress: `./wordpress` (incluye `wp-content`)  
 
-Los artefactos de bootstrap (WordPress y dump SQL) se almacenan en **Amazon S3**.
+### Bootstrap externo (S3)
+
+- `wp-content.tar.gz`  
+- `mysql-bootstrap.tar.gz`  
 
 ---
 
-## 🚀 Despliegue paso a paso
+## 🔐 Hardening aplicado (resumen)
 
-### 1️⃣ Acceso a la instancia Lightsail
+### 🔑 SSH Hardening
+
+- Puerto no estándar: **2222**
+- Autenticación **solo por clave pública**
+- Login de root deshabilitado
+
+### 🔥 Firewall (UFW)
+
+- Política por defecto: **deny incoming**
+- Puertos expuestos:
+  - 80 / 443 (HTTP / HTTPS)
+  - 2222 (SSH)
+
+### 🚨 Fail2Ban
+
+- Protección activa contra fuerza bruta en SSH
+- Baneo automático por intentos fallidos
+
+### 🐳 Docker / Infraestructura
+
+- Variables sensibles externalizadas (`.env`)
+- Principio de mínimo privilegio
+- phpMyAdmin accesible **solo desde localhost**
+- Servicios auxiliares bajo `profiles: tools`
+
+### 🧩 WordPress
+
+- Edición de archivos deshabilitada (`DISALLOW_FILE_EDIT`)
+- Gestión de plugins vía `wp-cli`
+- Configuración preparada para proxy reverso
+- Limpieza de headers SSL
+
+---
+
+## 🚀 Despliegue (resumen)
+
+### 1️⃣ Acceso a la instancia
 
 ```bash
-ssh -i ~/.ssh/LightsailDefaultKey-us-east-1-pd.pem ubuntu@44.220.98.235
+ssh -i ~/.ssh/LightsailDefaultKey.pem ubuntu@IP_PUBLICA -p 2222
 ```
 
->>>>>>> 7fc08ddcf9a914c4d23a142ee86cb5b0831ef492
-### 2️⃣ Clonar el repositorio
+### 2️⃣ Clonar repositorio
 
 ```bash
 git clone https://github.com/GerardMastra/wordpress-docker-devops.git
 cd wordpress-docker-devops
 ```
 
-<<<<<<< HEAD
----
-
-### 3️⃣ Bootstrap seguro del servidor
-=======
-### 3️⃣ Bootstrap del servidor
-
-El proyecto incluye un script de bootstrap para preparar una instancia Ubuntu desde cero.
->>>>>>> 7fc08ddcf9a914c4d23a142ee86cb5b0831ef492
-
-Script `bootstrap-secure.sh`:
-
-<<<<<<< HEAD
-* actualiza el sistema
-* instala Docker desde repos oficiales
-* habilita Docker
-* configura UFW
-* agrega el usuario al grupo docker
+### 3️⃣ Bootstrap del servidor (seguro)
 
 ```bash
 chmod +x scripts/bootstrap-secure.sh
 sudo ./scripts/bootstrap-secure.sh
 ```
 
-🔁 Cerrar sesión y volver a ingresar.
-=======
-- actualiza el sistema
-- instala Docker
-- instala Docker Compose
-- habilita el servicio Docker
+### 🔁 Cerrar sesión y volver a ingresar
 
-```bash
-chmod +x scripts/bootstrap.sh
-sudo ./scripts/bootstrap.sh
-```
-
-### 4️⃣ Configuración inicial
-
-Copiar archivos base de configuración:
-
-```bash
-cp .env.example .env
-cp wordpress/wp-config-sample.php wordpress/wp-config.php
-```
-
-Agregar el usuario ubuntu al grupo Docker y reconectar:
-
-```bash
-sudo usermod -aG docker ubuntu
-exit
-```
-
-Volver a ingresar por SSH.
-
-### 5️⃣ Instalación de dependencias auxiliares
-
-```bash
-cd ~/wordpress-docker-devops/
-sudo apt install make
-```
-
-### 6️⃣ Inicialización SSL y despliegue
-
-```bash
-make ssl-init
-make ssl-https
-make up
-```
-
-### 🔁 Restauración desde S3 (Bootstrap manual)
-#### 📦 Restaurar archivos WordPress
-
-Ajustar permisos:
-
-```bash
-sudo chown -R ubuntu:ubuntu ~/wordpress-docker-devops/wordpress
-sudo find ~/wordpress-docker-devops/wordpress -type d -exec chmod 755 {} \;
-sudo find ~/wordpress-docker-devops/wordpress -type f -exec chmod 644 {} \;
-```
-
-```bash
-aws s3 cp s3://gerardo-devops-wp-bootstrap/bootstrap/wordpress/wp-content.tar.gz /tmp/
-tar -xzf /tmp/wp-content.tar.gz -C /home/ubuntu/wordpress-docker-devops/wordpress/
-sudo chown -R 33:33 ~/wordpress-docker-devops/wordpress
-```
-
-#### 🗄 Restaurar base de datos MySQL
-
-```bash
-sudo chown -R ubuntu:ubuntu mysql
-aws s3 cp s3://gerardo-devops-wp-bootstrap/bootstrap/mysql/mysql-bootstrap.tar.gz /tmp/
-tar -xzf /tmp/mysql-bootstrap.tar.gz -C /home/ubuntu/wordpress-docker-devops/mysql/
-sudo chown -R 999:999 mysql/data
-```
-
-Reiniciar stack:
-
-```bash
-make down
-make up
-```
-
-Importar base de datos:
-
-```bash
-docker exec -i wp-mysql mysql -u root -pchangeme_root wordpress < ~/wordpress-docker-devops/mysql/backups/dump.sql
-```
-
-### 🧩 Gestión de WordPress vía wp-cli
-
-Desactivar plugins:
-
-```bash
-docker-compose run --rm wp-cli wp plugin deactivate --all
-```
-
-Instalar plugins:
-
-```bash
-docker-compose run --rm wp-cli wp plugin install meta-box contact-form-7
-docker-compose run --rm wp-cli wp plugin activate elementor zilom-themer meta-box contact-form-7
-docker-compose run --rm wp-cli wp plugin update --all
-```
-
-> Nota: se utiliza `docker-compose` explícito para wp-cli por claridad operativa.
-
-### 🧰 Makefile
-
-El proyecto incluye un Makefile para estandarizar operaciones comunes:
-
-```bash
-make up        # Levanta el stack
-make down      # Detiene los contenedores
-make restart   # Reinicia servicios
-make logs      # Muestra logs
-make ps        # Estado de contenedores
-```
-
-### 🧠 Decisiones técnicas
-
-El bootstrap es manual a propósito.
->>>>>>> 7fc08ddcf9a914c4d23a142ee86cb5b0831ef492
-
-Se evita sobre-automatizar en esta etapa para:
-
-<<<<<<< HEAD
 ### 4️⃣ Configuración inicial
 
 ```bash
@@ -548,19 +131,9 @@ cp .env.example .env
 cp wordpress/wp-config-sample.php wordpress/wp-config.php
 ```
 
-Editar `.env` con credenciales reales (no se sube al repo).
+Editar .env con credenciales reales (no se sube al repo).
 
----
-
-### 5️⃣ Instalación de utilidades
-
-```bash
-sudo apt install make -y
-```
-
----
-
-### 6️⃣ SSL y despliegue
+### 5️⃣ SSL y despliegue
 
 ```bash
 make ssl-init
@@ -568,11 +141,9 @@ make ssl-https
 make up
 ```
 
----
+### 🔁 Restauración desde S3 (manual)
 
-## 🔁 Restauración desde S3 (Bootstrap manual)
-
-### 📦 Restaurar archivos WordPress
+### 📦 Archivos WordPress
 
 ```bash
 sudo chown -R ubuntu:ubuntu wordpress
@@ -583,7 +154,7 @@ sudo chown -R 33:33 wordpress
 
 ---
 
-### 🗄 Restaurar base de datos
+## 🗄 Restaurar Base de datos
 
 ```bash
 sudo chown -R ubuntu:ubuntu mysql
@@ -629,67 +200,31 @@ make logs      # Logs
 make ps        # Estado
 ```
 
----
-
 ## 🧠 Decisiones técnicas
 
-* El **hardening se aplica antes del git push**, no después.
-* Se evita sobre-automatizar para facilitar debugging.
-* Seguridad integrada desde el diseño.
-* Separación clara entre bootstrap, runtime y tooling.
-
----
-
-## 📌 Estado del proyecto
-
-* ✔ Funcional
-* ✔ Documentado
-* ✔ Reproducible
-* ✔ Hardened
-* ✔ Apto para portfolio DevOps Junior
-
----
-
-## 🔜 Próximas mejoras (Fase 3)
-
-* Backups automáticos y rotación en S3
-* CI/CD con GitHub Actions
-* Escaneo de imágenes (Trivy)
-* Monitoreo con Prometheus & Grafana
-* Migración a Terraform
-
----
-
-## 👤 Autor
-
-**Gerardo Angel Mastramico**
-DevOps Junior
-
-GitHub: [https://github.com/GerardMastra](https://github.com/GerardMastra)
-=======
-- mantener claridad
-- facilitar debugging
-- separar bootstrap de runtime
-- abordar automatización completa en proyectos posteriores (CI/CD).
+- El hardening se aplica antes del runtime
+- Seguridad integrada desde el diseño
+- Bootstrap manual para mayor control y trazabilidad
+- Automatización completa reservada para fases posteriores
 
 ### 📌 Estado del proyecto
 
 - ✔ Funcional
 - ✔ Documentado
 - ✔ Reproducible
+- ✔ Seguridad aplicada
 - ✔ Apto para portfolio DevOps Junior
 
-### 🔜 Próximas mejoras (fase 2)
+### 🔜 Próxima evolución (v1.2.0)
 
-- Hardening del host (SSH, firewall)
-- Backups automáticos a S3
+- Deploy en un solo comando
+- Healthchecks
+- Validaciones post-deploy
+- Mejor experiencia operativa (DX)
 - CI/CD con GitHub Actions
-- Monitoreo con Prometheus & Grafana
 
 ## 👤 Autor
 
-**Gerardo Angel Mastramico**
+Gerardo Angel Mastramico
 DevOps Junior
 GitHub: <https://github.com/GerardMastra>
-
->>>>>>> 7fc08ddcf9a914c4d23a142ee86cb5b0831ef492
