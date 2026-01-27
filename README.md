@@ -1,6 +1,6 @@
 # 🐳 WordPress en Docker desplegado en AWS Lightsail
 
-## Versión: v1.1.1 – Security & Hardening Upgrade
+## Versión: v1.1.2 – Fix & Integration Stability
 
 Proyecto **DevOps Junior** que demuestra el despliegue de una aplicación **WordPress real** utilizando **Docker Compose**, ejecutada en **AWS Lightsail**, con **persistencia de datos**, **restauración desde S3** y **mejoras de seguridad aplicadas** en el **host**, la **infraestructura Docker** y **WordPress**.
 
@@ -8,9 +8,11 @@ Esta versión es una **evolución directa de la v1.0.1**, orientada a demostrar 
 
 ---
 
-## 🎯 Objetivo de la versión v1.1.1
+## 🎯 Objetivo de la versión v1.1.2
 
-> **Demostrar conciencia de seguridad y criterio profesional en un entorno cloud pequeño, sin sobre-automatización.**
+> **Corregir la integración entre servicios y asegurar la consistencia de la configuración inicial.**
+
+Esta versión resuelve errores de la v1.1.1 relacionados con la falta de variables de entorno en el servicio `wp-cli` y la correcta vinculación de constantes en el archivo de configuración de WordPress.
 
 🧠 **Importante:**  
 Esta versión **no es obligatoria para presentar el proyecto**, sino una **mejora incremental natural** sobre la v1.0.1
@@ -90,6 +92,8 @@ El proyecto se ejecuta completamente en contenedores Docker:
 - Principio de mínimo privilegio
 - phpMyAdmin accesible **solo desde localhost**
 - Servicios auxiliares bajo `profiles: tools`
+- **Integración WP-CLI:** Se añadió el bloque `environment` al servicio para permitir la gestión de la base de datos desde el contenedor.
+- **Configuración Dinámica:** Sincronización de constantes de DB entre Docker y `wp-config.php`.
 
 ### 🧩 WordPress
 
@@ -128,6 +132,7 @@ sudo ./scripts/bootstrap-secure.sh
 
 ```bash
 cp .env.example .env
+# El archivo ya incluye las constantes vinculadas a las variables de entorno
 cp wordpress/wp-config-sample.php wordpress/wp-config.php
 ```
 
@@ -200,25 +205,26 @@ make logs      # Logs
 make ps        # Estado
 ```
 
-## 🧠 Decisiones técnicas
+## 🧠 Decisiones técnicas (v1.1.2)
 
 - El hardening se aplica antes del runtime
 - Seguridad integrada desde el diseño
 - Bootstrap manual para mayor control y trazabilidad
 - Automatización completa reservada para fases posteriores
+- **Contexto en wp-cli:** Se detectó que el contenedor de CLI fallaba al no tener acceso a las variables de entorno del `docker-compose.yml`. Se corrigió inyectando el bloque `environment`.
+- **Consistencia de Configuración:** Se estandarizó el `wp-config-sample.php` para que utilice las variables definidas en el `.env` de forma nativa, evitando errores de conexión manuales.
 
 ### 📌 Estado del proyecto
 
-- ✔ Funcional
+- ✔ **Funcional y Corregido (Hotfix)**
 - ✔ Documentado
 - ✔ Reproducible
 - ✔ Seguridad aplicada
-- ✔ Apto para portfolio DevOps Junior
 
 ### 🔜 Próxima evolución (v1.2.0)
 
-- Deploy en un solo comando
-- Healthchecks
+- Deploy en un solo comando (Full Automation)
+- Healthchecks para servicios dependientes (DB readiness)
 - Validaciones post-deploy
 - Mejor experiencia operativa (DX)
 - CI/CD con GitHub Actions
