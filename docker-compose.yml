@@ -1,6 +1,24 @@
-version: "3.8"
-
 services:
+  mysql:
+    image: mysql:5.7
+    container_name: wp-mysql
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - /opt/wordpress-runtime/mysql/data:/var/lib/mysql
+    networks:
+      - wp-network
+    mem_limit: 768m
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u$$MYSQL_USER", "-p$$MYSQL_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
   php:
     image: wordpress:php8.1-fpm
     container_name: wp-php
@@ -13,12 +31,15 @@ services:
       WP_DB_PASSWORD: ${MYSQL_PASSWORD}
       WP_DB_NAME: ${MYSQL_DATABASE}
     volumes:
-      - ./wordpress:/var/www/html
+      - /opt/wordpress-runtime/wordpress:/var/www/html
     networks:
       - wp-network
     mem_limit: 768m
     security_opt:
       - no-new-privileges:true
+    depends_on:
+      mysql:
+        condition: service_healthy
 
   nginx:
     image: nginx:1.25-alpine
@@ -29,11 +50,12 @@ services:
       - "443:443"
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./wordpress:/var/www/html:ro
-      - ./certbot/conf:/etc/letsencrypt:ro
-      - ./certbot/www:/var/www/certbot:ro
+      - /opt/wordpress-runtime/wordpress:/var/www/html:ro
+      - /opt/wordpress-runtime/certbot/conf:/etc/letsencrypt:ro
+      - /opt/wordpress-runtime/certbot/www:/var/www/certbot:ro
     depends_on:
-      - php
+      php:
+        condition: service_started
     networks:
       - wp-network
     mem_limit: 128m
@@ -44,32 +66,19 @@ services:
       - /var/cache/nginx
       - /var/run
 
-  mysql:
-    image: mysql:5.7
-    container_name: wp-mysql
-    restart: unless-stopped
-    env_file:
-      - .env
-    volumes:
-      - ./mysql/data:/var/lib/mysql
-    networks:
-      - wp-network
-    mem_limit: 768m
-    security_opt:
-      - no-new-privileges:true
-
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
     container_name: wp-phpmyadmin
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8081:80"   # 👈 solo acceso local
+      - "127.0.0.1:8081:80"
     env_file:
       - .env
     environment:
       PMA_HOST: mysql
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
     networks:
       - wp-network
     mem_limit: 256m
@@ -80,10 +89,12 @@ services:
     image: wordpress:cli
     container_name: wp-cli
     depends_on:
-      - php
-      - mysql
+      mysql:
+        condition: service_healthy
+      php:
+        condition: service_started
     volumes:
-      - ./wordpress:/var/www/html
+      - /opt/wordpress-runtime/wordpress:/var/www/html
     user: "33:33"
     env_file:
       - .env
@@ -101,19 +112,19 @@ services:
     image: certbot/certbot
     container_name: wp-certbot
     volumes:
-      - ./certbot/conf:/etc/letsencrypt
-      - ./certbot/www:/var/www/certbot
+     - /opt/wordpress-runtime/certbot/conf:/etc/letsencrypt
+     - /opt/wordpress-runtime/certbot/www:/var/www/certbot
     networks:
       - wp-network
     profiles:
-      - tools
+     - tools
 
   certbot-renew:
     image: certbot/certbot
     container_name: wp-certbot-renew
     volumes:
-      - ./certbot/conf:/etc/letsencrypt
-      - ./certbot/www:/var/www/certbot
+     - /opt/wordpress-runtime/certbot/conf:/etc/letsencrypt
+     - /opt/wordpress-runtime/certbot/www:/var/www/certbot
     networks:
       - wp-network
     entrypoint: >
