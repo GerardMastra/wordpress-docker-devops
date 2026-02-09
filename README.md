@@ -1,6 +1,6 @@
 # 🐳 WordPress en Docker desplegado en AWS Lightsail
 
-## Versión v1.2.0 – Automated Deploy & Secure Runtime
+## Versión v1.2.1 – Minor Fixes & Documentation Update
 
 Proyecto **DevOps Junior** que demuestra el despliegue de una aplicación **WordPress real** utilizando **Docker Compose**, ejecutada en **AWS Lightsail**, con:
 
@@ -15,7 +15,7 @@ El objetivo no es “sobre-automatizar”, sino **mostrar criterio, estabilidad 
 
 ---
 
-## 🎯 Objetivo de la versión v1.2.0
+## 🎯 Objetivo de la versión v1.2.1
 
 > **Lograr un despliegue completo, estable y reproducible, minimizando errores humanos y evitando versionar secretos.**
 
@@ -26,6 +26,10 @@ Esta versión introduce:
 - Datos persistentes fuera del repositorio
 - Dependencias y healthchecks reales entre servicios
 - Restauración automática de WordPress y MySQL desde S3
+
+📝 Nota v1.2.1  
+Esta versión no introduce cambios funcionales respecto a v1.2.0.
+Incluye correcciones menores de documentación y precisión en los pasos de acceso (SSH hardening).
 
 ---
 
@@ -121,7 +125,7 @@ Esto evita:
 ### 1️⃣ Acceso a la instancia
 
 ```bash
-ssh -i ~/.ssh/LightsailDefaultKey.pem ubuntu@IP_PUBLICA
+ssh -i ~/.ssh/LightsailDefaultKey.pem ubuntu@44.220.98.235 -p 2222
 ```
 
 ---
@@ -218,7 +222,7 @@ make logs          # Logs en tiempo real
 - ✔ Estable en reinicios
 - ✔ Apto para portfolio DevOps Junior
 
-**Tag sugerido**: v1.2.0
+**Tag sugerido**: v1.2.1
 
 ---
 
