@@ -1,35 +1,34 @@
 # 🐳 WordPress en Docker desplegado en AWS Lightsail
 
-## Versión v1.2.1 – Minor Fixes & Documentation Update
+## Versión v1.2.2 – Environment Decoupling & Security Cleanup
 
-Proyecto **DevOps Junior** que demuestra el despliegue de una aplicación **WordPress real** utilizando **Docker Compose**, ejecutada en **AWS Lightsail**, con:
+Proyecto **DevOps Junior** que demuestra el despliegue de una aplicación **WordPress real** utilizando **Docker Compose**, ejecutada en AWS Lightsail, con:
 
 - Separación estricta entre **código (repo)** y **datos (runtime)**
-- Persistencia de datos fuera del repositorio
-- Restauración desde **Amazon S3**
+- Persistencia fuera del repositorio
+- Restauración desde Amazon S3
 - Generación segura de configuración sensible
-- Automatización operativa mediante **Makefile**
+- Automatización operativa mediante Makefile
 - Arranque ordenado entre servicios (healthchecks)
+- Separación de entornos (`local` y `prod`)
 
-El objetivo no es “sobre-automatizar”, sino **mostrar criterio, estabilidad y mentalidad DevOps realista**.
+El objetivo no es sobre-automatizar, sino **demostrar criterio, reproducibilidad y buenas prácticas reales de infraestructura**.
 
 ---
 
-## 🎯 Objetivo de la versión v1.2.1
+## 🎯 Objetivo de la versión v1.2.2
 
-> **Lograr un despliegue completo, estable y reproducible, minimizando errores humanos y evitando versionar secretos.**
+> Eliminar dependencias hardcodeadas de infraestructura real y asegurar que el repositorio sea 100% portable.
 
-Esta versión introduce:
+Esta versión:
 
-- `make full-deploy` como interfaz única de operación
-- Generación dinámica de `wp-config.php` desde plantilla
-- Datos persistentes fuera del repositorio
-- Dependencias y healthchecks reales entre servicios
-- Restauración automática de WordPress y MySQL desde S3
+- Elimina IP pública hardcodeada del README
+- Remueve datos reales de dominio, bucket y email del `.env.example`
+- Refuerza separación entre `.env.example`, `.env.local` y `.env.prod`
+- Mejora la neutralidad del proyecto para uso público y portfolio
 
-📝 Nota v1.2.1  
-Esta versión no introduce cambios funcionales respecto a v1.2.0.
-Incluye correcciones menores de documentación y precisión en los pasos de acceso (SSH hardening).
+No introduce cambios funcionales respecto a v1.2.1.  
+Es una mejora de seguridad documental y portabilidad.
 
 ---
 
@@ -38,7 +37,13 @@ Incluye correcciones menores de documentación y precisión en los pasos de acce
 **URL pública:**  
 <http://gerardo-devops-wp.duckdns.org>
 
-> ⚠️ El dominio utiliza DNS dinámico (DuckDNS). Pueden existir intermitencias propias del proveedor.
+El proyecto está preparado para funcionar con cualquier dominio válido.
+
+Ejemplo de acceso SSH seguro:
+
+```bash
+ssh -i ~/.ssh/your-key.pem ubuntu@your-server-ip -p 2222
+```
 
 ---
 
@@ -58,79 +63,123 @@ Incluye correcciones menores de documentación y precisión en los pasos de acce
 
 ---
 
-## 🏗️ Estructura del proyecto
-
-### 📦 Repositorio (versionado)
+## 🏗️ Estructura actual del repositorio
 
 ```text
-repo/
-├── docker-compose.yml
+.
+├── docker-compose.local.yml
+├── docker-compose.prod.yml
 ├── Makefile
 ├── README.md
 ├── .env.example
+├── .env.local
+├── .env.prod
 ├── .gitignore
 │
-├── wordpress/
-│   └── wp-config.php.template
+├── mysql/
+│   └── .gitkeep
 │
 ├── nginx/
-├── mysql/
-└── scripts/
+│   ├── default.conf
+│   ├── default.http.conf
+│   └── default.https.conf
+│
+├── scripts/
+│   └── bootstrap-secure.sh
+│
+└── wordpress/
+    ├── wp-config.php.template
+    └── mkt/default.example.php
 ```
 
-👉 El repositorio no contiene datos persistentes ni secretos.
-Solo código, plantillas y definición de infraestructura.
+El repositorio contiene únicamente:
+
+- Código
+- Plantillas
+- Definición de infraestructura
+- Scripts de bootstrap
+
+No contiene:
+
+- Datos persistentes
+- Certificados
+- Backups
+- Credenciales reales
 
 ---
 
-## 🧠 Runtime (fuera del repo)
+## 🧠 Separación de entornos
 
-```text
+`.env.example`
+
+Contiene únicamente placeholders genéricos:
+
+```bash
+MYSQL_ROOT_PASSWORD=change_me_root
+DOMAIN_NAME=example.local
+S3_BUCKET=your-bucket-name
+```
+
+Este archivo es seguro para versionar.
+
+---
+
+`.env.local` y `.env.prod`
+
+Contienen valores reales específicos de infraestructura.
+
+Estos archivos:
+
+- No deben compartirse públicamente
+- No deben contener secretos en repositorios públicos
+- Son específicos de cada entorno
+
+---
+
+## 🗂 Runtime (fuera del repositorio)
+
+El runtime vive fuera del repo:
+
+```bash
 /opt/wordpress-runtime/
 ├── wordpress/
-│   ├── wp-config.php      # generado automáticamente
+│   ├── wp-config.php
 │   ├── wp-content/
 │   └── ...
 ├── mysql/
 └── certbot/
 ```
 
-👉 Todo lo que vive y cambia en runtime queda fuera del control de versiones.
+Esto permite:
+
+- Separar infraestructura de datos
+- Evitar subir secretos
+- Reproducir el entorno fácilmente
 
 ---
 
 ## 🔐 Gestión segura de configuración
 
-- wp-config.php no se versiona
+- `wp-config.php` no se versiona
 - Se genera dinámicamente desde:
-  - wordpress/wp-config.php.template
-  - variables definidas en .env
 
-La generación se realiza con:
+```bash
+wordpress/wp-config.php.template
+```
+
+usando variables del entorno (.env.local o .env.prod)
+
+Generación:
 
 ```bash
 make generate-wp-config
 ```
 
-Esto evita:
-
-- subir credenciales al repo
-- errores humanos
-- configuraciones inconsistentes entre entornos
-
 ---
 
-## 🚀 Despliegue
+## 🚀 Despliegue en entorno local
 
-### 1️⃣ Acceso a la instancia
-
-```bash
-ssh -i ~/.ssh/LightsailDefaultKey.pem ubuntu@44.220.98.235 -p 2222
-```
-
----
-
-### 2️⃣ Clonar repositorio
+### 1️⃣ Clonar repositorio en entorno local
 
 ```bash
 git clone https://github.com/GerardMastra/wordpress-docker-devops.git
@@ -139,100 +188,116 @@ cd wordpress-docker-devops
 
 ---
 
-### 3️⃣ Configuración inicial
+### 2️⃣ Configurar entorno local
 
 ```bash
-cp .env.example .env
+cp .env.example .env.local
 ```
 
-Editar .env con valores reales (credenciales, dominio, S3).
+Editar .env.local con valores reales.
 
 ---
 
-## ⚙️ Despliegue automatizado (recomendado)
-
-### 🚀 Ejecución completa
+### 3️⃣ Deploy local
 
 ```bash
-make full-deploy
+make up-local ENV=local
 ```
 
 Este comando:
 
-1. Prepara permisos de runtime
-2. Genera wp-config.php
-3. Levanta el stack Docker
-4. Inicializa SSL (HTTP → HTTPS)
-5. Restaura WordPress y MySQL desde S3
-6. Importa la base de datos
-7. Configura WordPress vía wp-cli
-8. Valida estado final de los servicios
+- Prepara permisos
+- Genera wp-config.php
+- Levanta contenedores
+- Configura SSL
+- Restaura datos desde S3
+- Importa base de datos
+- Configura WordPress vía wp-cli
 
 ---
 
-🧰 Comandos principales
+## 🌍 Despliegue en entorno remoto (prod)
+
+Conectarse previamente al servidor vía SSH.
+
+### 1️⃣ Clonar repositorio en entorno productivo
 
 ```bash
-make deploy        # Despliegue base
-make full-deploy   # Deploy completo + restauración
-make up            # Levanta contenedores
-make down          # Detiene el stack
-make ps            # Estado y healthchecks
-make logs          # Logs en tiempo real
+git clone https://github.com/GerardMastra/wordpress-docker-devops.git
+cd wordpress-docker-devops
+```
+
+---
+
+### 2️⃣ Configurar entorno productivo
+
+```bash
+cp .env.example .env.prod
+```
+
+Editar .env.prod con:
+
+- Dominio real
+- Bucket S3 real
+- Credenciales reales
+- Rutas de runtime productivas
+
+---
+
+### 3️⃣ Deploy productivo
+
+```bash
+make up-prod ENV=prod
+```
+
+- docker-compose.prod.yml
+- Variables definidas en `.env.prod`
+- Runtime persistente en `/opt/wordpress-runtime`
+
+---
+
+## 🧰 Comandos útiles
+
+```bash
+make up-local ENV=local
+make up-prod ENV=prod
+make down ENV=local         # o ENV=prod
+make ps ENV=local           # o ENV=prod
+make logs ENV=local         # o ENV=prod
 ```
 
 ---
 
 ## 🏗 Arquitectura de servicios
 
-- **MySQL**
-  - Persistencia externa
-  - Healthcheck activo
-- **PHP-FPM**
-  - Depende de MySQL healthy
-- **Nginx**
-  - Read-only
-  - Proxy SSL
-- **wp-cli**
-  - Perfil tools
-  - No se levanta por defecto
-- **Certbot**
-  - Gestión de certificados SSL
-  - Renovación automática
+- MySQL con healthcheck activo
+- PHP-FPM dependiente de MySQL healthy
+- Nginx en modo read-only
+- wp-cli bajo profile tools
+- Certbot para emisión y renovación SSL
 
 ---
 
 ## 🧠 Decisiones técnicas clave
 
-- Separación repo / runtime
-- Automatización progresiva, no mágica
-- Makefile como interfaz única
-- Configuración sensible fuera del versionado
-- Healthchecks para evitar race conditions
-- Servicios auxiliares bajo profiles
+- Infraestructura desacoplada del código
+- Eliminación de hardcoding sensible
+- Separación clara de entornos
+- Runtime fuera del repositorio
+- Automatización progresiva y controlada
 
 ---
 
 ## 📌 Estado del proyecto
 
 - ✔ Funcional
-- ✔ Automatizado
+- ✔ Portable
 - ✔ Seguro a nivel configuración
+- ✔ Sin datos reales en el repositorio
 - ✔ Reproducible
-- ✔ Estable en reinicios
 - ✔ Apto para portfolio DevOps Junior
 
-**Tag sugerido**: v1.2.1
-
----
-
-## 🔜 Próximas evoluciones
-
-- Backups automáticos y rotación en S3
-- CI/CD con GitHub Actions
-- Escaneo de imágenes (Trivy)
-- Monitoreo con Prometheus & Grafana
-- Infraestructura como código (Terraform)
+**Tag sugerido**: v1.2.2
 
 ---
 

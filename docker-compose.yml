@@ -1,12 +1,13 @@
 services:
+
   mysql:
     image: mysql:5.7
     container_name: wp-mysql
     restart: unless-stopped
     env_file:
-      - .env
+      - ${ENV_FILE}
     volumes:
-      - /opt/wordpress-runtime/mysql/data:/var/lib/mysql
+      - ${RUNTIME_DIR}/mysql/data:/var/lib/mysql
     networks:
       - wp-network
     mem_limit: 768m
@@ -24,14 +25,16 @@ services:
     container_name: wp-php
     restart: unless-stopped
     env_file:
-      - .env
+      - ${ENV_FILE}
     environment:
       WP_DB_HOST: mysql:3306
       WP_DB_USER: ${MYSQL_USER}
       WP_DB_PASSWORD: ${MYSQL_PASSWORD}
       WP_DB_NAME: ${MYSQL_DATABASE}
+      WP_HOME: ${WP_HOME}
+      WP_SITEURL: ${WP_SITEURL}
     volumes:
-      - /opt/wordpress-runtime/wordpress:/var/www/html
+      - ${RUNTIME_DIR}/wordpress:/var/www/html
     networks:
       - wp-network
     mem_limit: 768m
@@ -45,14 +48,8 @@ services:
     image: nginx:1.25-alpine
     container_name: wp-nginx
     restart: always
-    ports:
-      - "80:80"
-      - "443:443"
     volumes:
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-      - /opt/wordpress-runtime/wordpress:/var/www/html:ro
-      - /opt/wordpress-runtime/certbot/conf:/etc/letsencrypt:ro
-      - /opt/wordpress-runtime/certbot/www:/var/www/certbot:ro
+      - ${RUNTIME_DIR}/wordpress:/var/www/html:ro
     depends_on:
       php:
         condition: service_started
@@ -73,7 +70,7 @@ services:
     ports:
       - "127.0.0.1:8081:80"
     env_file:
-      - .env
+      - ${ENV_FILE}
     environment:
       PMA_HOST: mysql
     depends_on:
@@ -94,10 +91,10 @@ services:
       php:
         condition: service_started
     volumes:
-      - /opt/wordpress-runtime/wordpress:/var/www/html
+      - ${RUNTIME_DIR}/wordpress:/var/www/html
     user: "33:33"
     env_file:
-      - .env
+      - ${ENV_FILE}
     environment:
       WP_DB_HOST: mysql:3306
       WP_DB_USER: ${MYSQL_USER}
@@ -106,34 +103,7 @@ services:
     networks:
       - wp-network
     profiles:
-      - tools   # 👈 no se levanta por defecto
-
-  certbot:
-    image: certbot/certbot
-    container_name: wp-certbot
-    volumes:
-     - /opt/wordpress-runtime/certbot/conf:/etc/letsencrypt
-     - /opt/wordpress-runtime/certbot/www:/var/www/certbot
-    networks:
-      - wp-network
-    profiles:
-     - tools
-
-  certbot-renew:
-    image: certbot/certbot
-    container_name: wp-certbot-renew
-    volumes:
-     - /opt/wordpress-runtime/certbot/conf:/etc/letsencrypt
-     - /opt/wordpress-runtime/certbot/www:/var/www/certbot
-    networks:
-      - wp-network
-    entrypoint: >
-      /bin/sh -c
-      "trap exit TERM;
-       while :; do
-         certbot renew;
-         sleep 12h & wait $${!};
-       done"
+      - tools
 
 networks:
   wp-network:
