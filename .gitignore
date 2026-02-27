@@ -1,47 +1,14 @@
-# ------------------------
-# Secrets & keys (NUNCA versionar)
-# ------------------------
+# ==========================================
+# 🔐 Secrets & environment files
+# ==========================================
 .env
-*.pem
-*token*
-*.key
-docker-compose.override.yml
+.env.*
+!.env.example
 
-# ------------------------
-# MySQL
-# ------------------------
-mysql/data/
-mysql/backups/
-!mysql/.gitkeep
-
-# ------------------------
-# WordPress core
-# ------------------------
-wordpress/wp-admin/
-wordpress/wp-includes/
-wordpress/*.php
-!wordpress/wp-config-sample.php
-
-# ------------------------
-# WordPress archivos personales
-# ------------------------
-wordpress/mkt/*.php
-!wordpress/mkt/*.example.php
-
-# ------------------------
-# WordPress wp-content (todo ignorado por defecto)
-# ------------------------
-wordpress/wp-content/
-
-# ------------------------
-# WordPress archivos temporales / runtime  (todo ignorado por defecto)
-# ------------------------
-wordpress/.htaccess
-wordpress/.htaccess.bk
-wordpress/license.txt
-wordpress/readme.html
-
-# ------------------------
-# Certbot / Let's Encrypt
-# ------------------------
-certbot/
+# ==========================================
+# 🖥️ OS / editor noise
+# ==========================================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

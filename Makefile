@@ -1,7 +1,15 @@
--include .env
-export
+# ==============================
+# MULTI-ENVIRONMENT CONFIG
+# ==============================
 
-RUNTIME_DIR := /opt/wordpress-runtime
+ENV ?= local
+ENV_FILE := .env.$(ENV)
+COMPOSE_FILES := -f docker-compose.yml -f docker-compose.$(ENV).yml
+
+DC := docker compose --env-file $(ENV_FILE) $(COMPOSE_FILES)
+
+-include $(ENV_FILE)
+export
 
 # Variables 
 GREEN  := $(shell tput -Txterm setaf 2) 
@@ -15,10 +23,11 @@ help: ## Muestra esta ayuda
 
 # --- SECCIÓN: DESPLIEGUE Y AUTOMATIZACIÓN --- 
 
-deploy: fix-perms generate-wp-config ## Despliegue completo: Valida .env, fija permisos y levanta el stack
+deploy: fix-perms generate-wp-config ## Despliegue completo: Valida .env.$(ENV), fija permisos y levanta el stack
 	@echo "$(GREEN)🚀 Iniciando despliegue automatizado...$(RESET)"
-	@if [ ! -f .env ]; then echo "$(YELLOW)⚠️ Archivo .env no encontrado. Creando desde .env.example...$(RESET)"; cp .env.example .env; fi
-	docker compose up -d
+	@if [ ! -f .env.$(ENV) ]; then echo "$(YELLOW)⚠️ Archivo .env.$(ENV) no encontrado.$(RESET)"; fi
+	$(DC) up -d
+
 	@echo "$(GREEN)✅ Stack levantado. Revisa el estado con 'make ps'$(RESET)"
 
 fix-perms: ## Permisos finales para contenedores
@@ -33,22 +42,22 @@ fix-perms: ## Permisos finales para contenedores
 	sudo chown -R root:root $(RUNTIME_DIR)/certbot
 	@echo "$(GREEN)✔️ Permisos runtime OK.$(RESET)"
 
-setup-wp: ## Activa tema, plugins y limpia caché
-	docker compose run --rm wp-cli wp theme activate zilom
-	docker compose run --rm wp-cli wp plugin activate zilom-themer elementor meta-box contact-form-7
+setup-wp:
+	$(DC) run --rm wp-cli wp theme activate zilom
+	$(DC) run --rm wp-cli wp plugin activate zilom-themer elementor meta-box contact-form-7
 	@echo "$(YELLOW)🧹 Limpiando caché de Elementor...$(RESET)"
-	docker compose run --rm wp-cli wp elementor flush_css --timeout=60
-	docker compose run --rm wp-cli wp elementor sync_library
+	$(DC) run --rm wp-cli wp elementor flush_css --timeout=60
+	$(DC) run --rm wp-cli wp elementor sync_library
 	@echo "✅ WordPress configurado y optimizado."
 
-generate-wp-config:
+generate-wp-config: ## Genera wp-config.php desde template
 	@echo "$(YELLOW)🧩 Generando wp-config.php de forma segura...$(RESET)"
 	@# Definimos qué variables queremos que envsubst reemplace
 	@export VARS='$$WP_DB_NAME,$$WP_DB_USER,$$WP_DB_PASSWORD,$$WP_DB_HOST,$$WP_HOME,$$WP_SITEURL'; \
-	envsubst "$$VARS" < wordpress/wp-config.php.template | sudo tee $(RUNTIME_DIR)/wordpress/wp-config.php > /dev/null
+	sudo sh -c "envsubst '$$VARS' < wordpress/wp-config.php.template > $(RUNTIME_DIR)/wordpress/wp-config.php"
 	sudo chown 33:33 $(RUNTIME_DIR)/wordpress/wp-config.php
 
-full-deploy: ## 🚀 EJECUCIÓN TOTAL: Infra, SSL y Restauración de datos
+up-prod: ## 🚀 EJECUCIÓN TOTAL: Infra, SSL y Restauración de datos
 	@echo "$(GREEN)🔥 Iniciando automatización completa V1.2...$(RESET)"
 	$(MAKE) deploy
 	@echo "$(YELLOW)⏳ Esperando a que los servicios estén Healthy...$(RESET)"
@@ -62,33 +71,48 @@ full-deploy: ## 🚀 EJECUCIÓN TOTAL: Infra, SSL y Restauración de datos
 	@echo "$(GREEN)✨ ¡Stack desplegado, securizado y restaurado!$(RESET)"
 	$(MAKE) ps
 
+up-local: ## 🚀 EJECUCIÓN LOCAL: Infra, Configuración y Restauración de datos
+	@grep -q "gerardo-devops-wp.duckdns.org" /etc/hosts || \
+		(echo "127.0.0.1 gerardo-devops-wp.duckdns.org" | sudo tee -a /etc/hosts > /dev/null)
+	$(MAKE) generate-wp-config
+	$(MAKE) ssl-http
+	$(MAKE) restore-s3
+	$(MAKE) db-import
+	$(MAKE) fix-domain
+	$(MAKE) setup-wp
+	$(MAKE) up
+	@echo "$(GREEN)✨ ¡Stack desplegado localmente, securizado y restaurado!$(RESET)"
+	$(MAKE) ps
+
 # --- SECCIÓN: COMANDOS DOCKER (Mejorados) ---
 
 up: ## Levanta los contenedores
-	docker compose up -d
+	$(DC) up -d
 
-down: ## Detiene y elimina los contenedores
-	docker compose down
+down: ## Detiene y elimina los contenedores y limpia hosts
+	$(DC) down
+	sudo sed -i '/gerardo-devops-wp.duckdns.org/d' /etc/hosts
+	@echo "$(YELLOW)🗑️  Servicios detenidos y dominio removido de /etc/hosts$(RESET)"
 
 restart: ## Reinicia servicios
-	docker compose restart
+	$(DC) restart
 
 logs: ## Logs en tiempo real
-	docker compose logs -f
+	$(DC) logs -f
 
 ps: ## Estado de contenedores y Healthchecks
-	docker compose ps
+	$(DC) ps
 
 # --- SECCIÓN: SSL (Tu lógica original mejorada) --- 
 
 ssl-http: ## Activando Nginx en modo HTTP (bootstrap SSL)
 	@echo "$(YELLOW)🌐 Configurando Nginx para validación de Certbot...$(RESET)"
 	cp nginx/default.http.conf nginx/default.conf
-	docker compose up -d nginx
+	$(DC) up -d nginx
 
 ssl-init: ssl-http ## Generando certificado SSL Let's Encrypt
 	@echo "$(YELLOW)🔐 Ejecutando Certbot...$(RESET)"
-	docker compose run --rm certbot certonly \
+	$(DC) --profile tools run --rm certbot certonly \
 	--webroot \
 	--webroot-path=/var/www/certbot \
 	--email $(SSL_EMAIL) \
@@ -103,7 +127,7 @@ ssl-https: ## Activando Nginx en modo HTTPS
 
 # --- SECCIÓN: DATOS (S3 y DB) ---
 
-prepare-restore:
+prepare-restore: ## Ajusta permisos antes de restaurar
 	@echo "$(YELLOW)🔓 Preparando permisos para restauración...$(RESET)"
 	sudo chown -R $(USER):$(USER) \
 	  $(RUNTIME_DIR)/wordpress \
@@ -124,6 +148,14 @@ restore-s3: prepare-restore ## Descarga assets desde S3
 	$(MAKE) fix-perms
 	rm -f /tmp/wp-content.tar.gz /tmp/mysql-bootstrap.tar.gz
 
+fix-domain: ## Reemplaza dominio en base de datos para entorno local
+	@echo "$(YELLOW)🔁 Reemplazando dominio en base de datos...$(RESET)"
+	$(DC) run --rm wp-cli wp search-replace \
+	'https://gerardo-devops-wp.duckdns.org' \
+	'http://localhost' \
+	--skip-columns=guid
+	@echo "$(GREEN)✔️ Dominio actualizado.$(RESET)"
+
 db-import: ## Importa el dump SQL a MySQL
 	@echo "Importando base de datos... (esto puede tardar, no canceles)"
 	docker exec -i wp-mysql \
@@ -131,5 +163,5 @@ db-import: ## Importa el dump SQL a MySQL
 	  < $(RUNTIME_DIR)/mysql/backups/dump.sql
 	@echo "¡Importación finalizada!"
 
-bash-php:
+bash-php: ## Accede al contenedor PHP
 	docker exec -it wp-php bash
