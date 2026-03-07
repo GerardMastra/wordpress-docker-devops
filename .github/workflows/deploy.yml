@@ -1,0 +1,31 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+
+    - name: Deploy via SSH
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        port: 2222
+
+        script: |
+          set -e
+          cd ~/projecto-devops/repo/wordpress-docker-devops
+
+          echo "Pull latest code"
+          git pull --ff-only origin main
+
+          echo "Deploy stack"
+          make up-prod ENV=prod
