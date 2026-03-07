@@ -120,6 +120,7 @@ ssl-init: ssl-http ## Generando certificado SSL Let's Encrypt
 	--no-eff-email \
 	--non-interactive \
 	--keep-until-expiring \
+	--cert-name $(DOMAIN_NAME) \
 	-d $(DOMAIN_NAME)
 
 ssl-https: ## Activando Nginx en modo HTTPS
