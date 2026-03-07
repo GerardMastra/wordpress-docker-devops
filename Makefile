@@ -113,16 +113,16 @@ ssl-http: ## Activando Nginx en modo HTTP (bootstrap SSL)
 ssl-init: ssl-http ## Generando certificado SSL Let's Encrypt
 	@echo "$(YELLOW)🔐 Ejecutando Certbot...$(RESET)"
 	$(DC) --profile tools run --rm certbot certonly \
-	--webroot \
-	--webroot-path=/var/www/certbot \
-	--email $(SSL_EMAIL) \
-	--agree-tos \
-	--no-eff-email \
-	--non-interactive \
-	--expand
-	--keep-until-expiring \
-	--cert-name $(DOMAIN_NAME) \
-	-d $(DOMAIN_NAME)
+		--webroot \
+		--webroot-path=/var/www/certbot \
+		--email $(SSL_EMAIL) \
+		--agree-tos \
+		--no-eff-email \
+		--non-interactive \
+		--expand \
+		--keep-until-expiring \
+		--cert-name $(DOMAIN_NAME) \
+		-d $(DOMAIN_NAME)
 
 ssl-https: ## Activando Nginx en modo HTTPS
 	@echo "$(GREEN)🔒 Aplicando configuración HTTPS...$(RESET)"
