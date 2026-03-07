@@ -119,6 +119,7 @@ ssl-init: ssl-http ## Generando certificado SSL Let's Encrypt
 	--agree-tos \
 	--no-eff-email \
 	--non-interactive \
+	--expand
 	--keep-until-expiring \
 	--cert-name $(DOMAIN_NAME) \
 	-d $(DOMAIN_NAME)
