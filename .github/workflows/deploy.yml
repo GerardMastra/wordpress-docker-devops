@@ -25,10 +25,16 @@ jobs:
           set -e
           cd ~/projecto-devops/repo/wordpress-docker-devops
 
-          echo "Reset repo"
+          echo "Buscando la rama actual..."
+          # Esto detecta si el push fue en main o dev y usa esa misma rama en el server
+          REF_NAME=${{ github.ref_name }}
+
+          echo "Actualizando repositorio a la rama $REF_NAME"
           git fetch origin
-          git reset --hard origin/main
+          git checkout $REF_NAME
+          git reset --hard origin/$REF_NAME
           git clean -fd
 
-          echo "Deploy stack"
+          echo "Desplegando stack forzando recreación..."
+          # Agregamos --build para que ignore el cache y lea los cambios del Dockerfile/Makefile
           make up-prod ENV=prod
