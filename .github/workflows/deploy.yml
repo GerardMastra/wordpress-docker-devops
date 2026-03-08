@@ -1,0 +1,40 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+
+jobs:
+
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+
+    - name: Deploy via SSH
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        port: 2222
+
+        script: |
+          set -e
+          cd ~/projecto-devops/repo/wordpress-docker-devops
+
+          echo "Buscando la rama actual..."
+          # Esto detecta si el push fue en main o dev y usa esa misma rama en el server
+          REF_NAME=${{ github.ref_name }}
+
+          echo "Actualizando repositorio a la rama $REF_NAME"
+          git fetch origin
+          git checkout $REF_NAME
+          git reset --hard origin/$REF_NAME
+          git clean -fd
+
+          echo "Desplegando stack forzando recreación..."
+          # Agregamos --build para que ignore el cache y lea los cambios del Dockerfile/Makefile
+          make up-prod ENV=prod
