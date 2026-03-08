@@ -1,34 +1,104 @@
 # 🐳 WordPress en Docker desplegado en AWS Lightsail
 
-## Versión v1.2.2 – Environment Decoupling & Security Cleanup
+## Versión v1.3.0 – CI/CD Automation Pipeline
 
-Proyecto **DevOps Junior** que demuestra el despliegue de una aplicación **WordPress real** utilizando **Docker Compose**, ejecutada en AWS Lightsail, con:
+Proyecto **DevOps Junior** que demuestra el despliegue de una aplicación **WordPress real** utilizando **Docker Compose**, ejecutada en **AWS Lightsail**, con:
 
 - Separación estricta entre **código (repo)** y **datos (runtime)**
 - Persistencia fuera del repositorio
-- Restauración desde Amazon S3
+- Restauración desde **Amazon S3**
 - Generación segura de configuración sensible
-- Automatización operativa mediante Makefile
-- Arranque ordenado entre servicios (healthchecks)
+- Automatización operativa mediante **Makefile**
+- Arranque ordenado entre servicios (**healthchecks**)
 - Separación de entornos (`local` y `prod`)
+- ***Pipeline CI/CD automatizado para despliegue remoto**
 
-El objetivo no es sobre-automatizar, sino **demostrar criterio, reproducibilidad y buenas prácticas reales de infraestructura**.
+El objetivo no es sobre-automatizar, sino **demostrar criterio, reproducibilidad y buenas prácticas reales de infraestructura y automatización DevOps.**
 
 ---
 
-## 🎯 Objetivo de la versión v1.2.2
+## 🎯 Objetivo de la versión v1.3.0
 
-> Eliminar dependencias hardcodeadas de infraestructura real y asegurar que el repositorio sea 100% portable.
+> Incorporar automatización CI/CD para desplegar el stack automáticamente tras cambios en el repositorio.
 
-Esta versión:
+Esta versión introduce:
 
-- Elimina IP pública hardcodeada del README
-- Remueve datos reales de dominio, bucket y email del `.env.example`
-- Refuerza separación entre `.env.example`, `.env.local` y `.env.prod`
-- Mejora la neutralidad del proyecto para uso público y portfolio
+- Pipeline **CI/CD con GitHub Actions**
+- Deploy remoto automático vía **SSH**
+- Sincronización automática entre repositorio y servidor
+- Rebuild del stack Docker tras cambios en el código
+- Imagen personalizada de WordPress basada en **PHP-FPM 8.1**
 
-No introduce cambios funcionales respecto a v1.2.1.  
-Es una mejora de seguridad documental y portabilidad.
+El despliegue ahora puede realizarse automáticamente tras un `push` a las ramas `main` o `dev`.
+
+---
+
+## ⚙️ Pipeline CI/CD
+
+Se implementó un pipeline usando **GitHub Actions.**
+
+Archivo:
+
+`.github/workflows/deploy.yml`
+
+El pipeline se ejecuta cuando hay `push` en:
+
+`main`
+`dev`
+
+### Flujo del pipeline
+
+**1.** GitHub detecta un push en el repositorio
+**2.** Se ejecuta el workflow CI/CD
+**3.** El pipeline abre una conexión SSH al servidor
+**4.** El servidor sincroniza el repositorio
+**5.** Se recrea el stack Docker
+
+---
+
+### 🔁 Proceso de despliegue automático
+
+El workflow realiza:
+
+```bash
+git fetch origin
+git reset --hard
+git clean -fd
+git checkout <branch>
+git reset --hard origin/<branch>
+```
+
+Luego ejecuta:
+
+```bash
+make up-prod ENV=prod
+```
+
+Esto:
+
+- reconstruye contenedores
+- aplica cambios de configuración
+- reinicia el stack
+
+El despliegue es **idempotente y reproducible**.
+
+---
+
+### 🔐 Seguridad del pipeline
+
+El acceso al servidor se realiza mediante:
+
+- clave SSH privada
+- puerto SSH personalizado
+- secretos almacenados en GitHub
+
+Secrets utilizados:
+
+`EC2_HOST`
+`EC2_USER`
+`EC2_SSH_KEY`
+
+Estos secretos **no se almacenan en el repositorio.**
 
 ---
 
@@ -59,6 +129,7 @@ ssh -i ~/.ssh/your-key.pem ubuntu@your-server-ip -p 2222
 - **DNS Dinámico:** DuckDNS
 - **SO:** Ubuntu Server
 - **Automatización:** Makefile
+- **CI/CD:** GitHub Actions
 - **SSL:** Let’s Encrypt (Certbot)
 
 ---
@@ -67,6 +138,10 @@ ssh -i ~/.ssh/your-key.pem ubuntu@your-server-ip -p 2222
 
 ```text
 .
+├── .github/
+│   └── workflows/
+│       └── deploy.yml
+│
 ├── docker-compose.local.yml
 ├── docker-compose.prod.yml
 ├── Makefile
@@ -84,6 +159,9 @@ ssh -i ~/.ssh/your-key.pem ubuntu@your-server-ip -p 2222
 │   ├── default.http.conf
 │   └── default.https.conf
 │
+├── php/
+│   └── Dockerfile
+│
 ├── scripts/
 │   └── bootstrap-secure.sh
 │
@@ -98,6 +176,7 @@ El repositorio contiene únicamente:
 - Plantillas
 - Definición de infraestructura
 - Scripts de bootstrap
+- Configuración CI/CD
 
 No contiene:
 
@@ -160,8 +239,9 @@ Esto permite:
 
 ## 🔐 Gestión segura de configuración
 
-- `wp-config.php` no se versiona
-- Se genera dinámicamente desde:
+`wp-config.php` no se versiona
+
+Se genera dinámicamente desde:
 
 ```bash
 wordpress/wp-config.php.template
@@ -216,20 +296,11 @@ Este comando:
 
 ---
 
-## 🌍 Despliegue en entorno remoto (prod)
-
-Conectarse previamente al servidor vía SSH.
-
-### 1️⃣ Clonar repositorio en entorno productivo
-
-```bash
-git clone https://github.com/GerardMastra/wordpress-docker-devops.git
-cd wordpress-docker-devops
-```
+## 🌍 Despliegue automático (CI/CD)
 
 ---
 
-### 2️⃣ Configurar entorno productivo
+### Configurar entorno productivo
 
 ```bash
 cp .env.example .env.prod
@@ -244,15 +315,21 @@ Editar .env.prod con:
 
 ---
 
-### 3️⃣ Deploy productivo
+### Despliegue
 
-```bash
-make up-prod ENV=prod
-```
+Cuando se realiza un `push` al repositorio:
 
-- docker-compose.prod.yml
-- Variables definidas en `.env.prod`
-- Runtime persistente en `/opt/wordpress-runtime`
+   `git push origin main`
+
+o
+
+   `git push origin dev`
+
+el pipeline ejecuta automáticamente:
+
+- sincronización del repositorio
+- reconstrucción del stack
+- redeploy del sistema
 
 ---
 
@@ -270,11 +347,11 @@ make logs ENV=local         # o ENV=prod
 
 ## 🏗 Arquitectura de servicios
 
-- MySQL con healthcheck activo
-- PHP-FPM dependiente de MySQL healthy
-- Nginx en modo read-only
-- wp-cli bajo profile tools
-- Certbot para emisión y renovación SSL
+- **MySQL** con healthcheck activo
+- **PHP-FPM** dependiente de MySQL healthy
+- **Nginx** en modo read-only
+- **wp-cli** bajo profile tools
+- **Certbot** para emisión y renovación SSL
 
 ---
 
@@ -285,6 +362,7 @@ make logs ENV=local         # o ENV=prod
 - Separación clara de entornos
 - Runtime fuera del repositorio
 - Automatización progresiva y controlada
+- Integración de pipeline CI/CD
 
 ---
 
@@ -292,12 +370,13 @@ make logs ENV=local         # o ENV=prod
 
 - ✔ Funcional
 - ✔ Portable
+- ✔ CI/CD automatizado
 - ✔ Seguro a nivel configuración
 - ✔ Sin datos reales en el repositorio
 - ✔ Reproducible
 - ✔ Apto para portfolio DevOps Junior
 
-**Tag sugerido**: v1.2.2
+**Tag sugerido**: v1.3.0
 
 ---
 
