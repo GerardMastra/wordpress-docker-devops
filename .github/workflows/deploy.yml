@@ -23,6 +23,7 @@ jobs:
 
         script: |
           set -e
+
           cd ~/projecto-devops/repo/wordpress-docker-devops
 
           echo "Buscando la rama actual..."
@@ -31,9 +32,12 @@ jobs:
 
           echo "Actualizando repositorio a la rama $REF_NAME"
           git fetch origin
+
+          git reset --hard
+          git clean -fd
+
           git checkout $REF_NAME
           git reset --hard origin/$REF_NAME
-          git clean -fd
 
           echo "Desplegando stack forzando recreación..."
           # Agregamos --build para que ignore el cache y lea los cambios del Dockerfile/Makefile
