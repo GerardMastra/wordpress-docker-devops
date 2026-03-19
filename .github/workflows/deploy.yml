@@ -1,4 +1,4 @@
-name: Deploy to EC2
+name: CI/CD WordPress Docker
 
 on:
   push:
@@ -8,37 +8,63 @@ on:
 
 jobs:
 
-  deploy:
+  ci:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Deploy via SSH
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ${{ secrets.EC2_USER }}
-        key: ${{ secrets.EC2_SSH_KEY }}
-        port: 2222
+      # Login Docker Hub
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-        script: |
-          set -e
+      # Build imagen
+      - name: Build Docker image
+        run: |
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/wordpress-devops:latest ./php
+          docker tag ${{ secrets.DOCKERHUB_USERNAME }}/wordpress-devops:latest \
+                     ${{ secrets.DOCKERHUB_USERNAME }}/wordpress-devops:${{ github.sha }}
 
-          cd ~/projecto-devops/repo/wordpress-docker-devops
+      # Push imagen
+      - name: Push Docker image
+        run: |
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/wordpress-devops:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/wordpress-devops:${{ github.sha }}
 
-          echo "Buscando la rama actual..."
-          # Esto detecta si el push fue en main o dev y usa esa misma rama en el server
-          REF_NAME=${{ github.ref_name }}
+  cd:
+    runs-on: ubuntu-latest
+    needs: ci
 
-          echo "Actualizando repositorio a la rama $REF_NAME"
-          git fetch origin
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 2222
 
-          git reset --hard
-          git clean -fd
+          script: |
+            set -e
 
-          git checkout $REF_NAME
-          git reset --hard origin/$REF_NAME
+            cd ~/projecto-devops/repo/wordpress-docker-devops
 
-          echo "Desplegando stack forzando recreación..."
-          # Agregamos --build para que ignore el cache y lea los cambios del Dockerfile/Makefile
-          make up-prod ENV=prod
+            REF_NAME=${{ github.ref_name }}
+
+            echo "Actualizando repo..."
+            git fetch origin
+            git reset --hard
+            git clean -fd
+            git checkout $REF_NAME
+            git reset --hard origin/$REF_NAME
+
+            echo "Descargando nueva imagen..."
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/wordpress-devops:latest
+
+            echo "Reiniciando servicios..."
+            docker compose down
+            docker compose up -d
