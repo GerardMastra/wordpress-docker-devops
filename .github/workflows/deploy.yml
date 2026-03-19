@@ -66,5 +66,5 @@ jobs:
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/wordpress-devops:latest
 
             echo "Reiniciando servicios..."
-            docker compose --env-file .env.prod down
-            docker compose --env-file .env.prod up -d
+            make down ENV=prod
+            make up-prod ENV=prod
