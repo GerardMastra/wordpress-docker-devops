@@ -1,6 +1,6 @@
 # 🐳 WordPress en Docker desplegado en AWS Lightsail
 
-## Versión v1.3.0 – CI/CD Automation Pipeline
+## Versión v1.3.1 – Full CI/CD Pipeline (Build + Push + Deploy)
 
 Proyecto **DevOps Junior** que demuestra el despliegue de una aplicación **WordPress real** utilizando **Docker Compose**, ejecutada en **AWS Lightsail**, con:
 
@@ -11,94 +11,127 @@ Proyecto **DevOps Junior** que demuestra el despliegue de una aplicación **Word
 - Automatización operativa mediante **Makefile**
 - Arranque ordenado entre servicios (**healthchecks**)
 - Separación de entornos (`local` y `prod`)
-- ***Pipeline CI/CD automatizado para despliegue remoto**
+- ***Pipeline CI/CD completo con build, push y deploy automático**
 
-El objetivo no es sobre-automatizar, sino **demostrar criterio, reproducibilidad y buenas prácticas reales de infraestructura y automatización DevOps.**
+El objetivo es demostrar, sino **flujo DevOps end-to-end**, desde el código hasta producción.
 
 ---
 
-## 🎯 Objetivo de la versión v1.3.0
+## 🎯 Objetivo de la versión v1.3.1
 
-> Incorporar automatización CI/CD para desplegar el stack automáticamente tras cambios en el repositorio.
+> Implementar un pipeline CI/CD completo que construya la imagen Docker, la publique en Docker Hub y despliegue automáticamente en el servidor.
 
 Esta versión introduce:
 
-- Pipeline **CI/CD con GitHub Actions**
-- Deploy remoto automático vía **SSH**
-- Sincronización automática entre repositorio y servidor
-- Rebuild del stack Docker tras cambios en el código
-- Imagen personalizada de WordPress basada en **PHP-FPM 8.1**
-
-El despliegue ahora puede realizarse automáticamente tras un `push` a las ramas `main` o `dev`.
+- Etapa **CI**: build y push de imagen Docker
+- Publicación en Docker Hub
+- Versionado de imagen (`latest` + commit SHA)
+- Etapa **CD**: deploy automático vía SSH
+- Eliminación del build en servidor (principio de inmutabilidad)
 
 ---
 
 ## ⚙️ Pipeline CI/CD
 
-Se implementó un pipeline usando **GitHub Actions.**
+Se implementó un pipeline con **GitHub Actions.**
 
 Archivo:
 
 `.github/workflows/deploy.yml`
 
-El pipeline se ejecuta cuando hay `push` en:
+El pipeline se ejecuta en cada `push` a:
 
-`main`
-`dev`
-
-### Flujo del pipeline
-
-**1.** GitHub detecta un push en el repositorio
-**2.** Se ejecuta el workflow CI/CD
-**3.** El pipeline abre una conexión SSH al servidor
-**4.** El servidor sincroniza el repositorio
-**5.** Se recrea el stack Docker
+- `main`
+- `dev`
 
 ---
 
-### 🔁 Proceso de despliegue automático
+### 🔄 Flujo completo del pipeline
 
-El workflow realiza:
+#### 🧪 CI - Build & Push
+
+**1.** Checkout del repositorio
+**2.** Login a Docker Hub
+**3.** Build de imagen desde `./php`
+**4.** Tag de imagen:
+    - `latest`
+    - `${commit_sha}`
+**5.** Push a Docker Hub
+
+Ejemplo:
 
 ```bash
-git fetch origin
-git reset --hard
-git clean -fd
-git checkout <branch>
-git reset --hard origin/<branch>
+docker build -t user/wordpress-devops:latest ./php
+docker push user/wordpress-devops:latest
 ```
 
-Luego ejecuta:
+---
+
+#### 🚀 CD - Deploy automático
+
+**1.** Conexión SSH al servidor
+**2.** Sincronización del repo
+**3.** Descarga de la nueva imagen
 
 ```bash
+docker pull user/wordpress-devops:latest
+```
+
+**4.** Recreación del stack:
+
+```bash
+make down ENV=prod
 make up-prod ENV=prod
 ```
 
-Esto:
+---
 
-- reconstruye contenedores
-- aplica cambios de configuración
-- reinicia el stack
+### 🐳 Cambio clave de arquitectura
 
-El despliegue es **idempotente y reproducible**.
+Antes (v1.3.0):
+
+```yaml
+php:
+  build: ./php
+  image: user/wordpress-devops:latest
+```
+
+Ahora (v1.3.1):
+
+```yaml
+php:
+  image: user/wordpress-devops:latest
+```
+
+#### 🧠 ¿Por qué es importante este cambio?
+
+Se elimina el build en producción.
+
+Esto permite:
+
+- Entornos inmutables
+- Deploys reproducibles
+- Separación real entre CI y CD
+- Mejor práctica DevOps
+
+El servidor ahora **solo ejecuta imágenes**, no las construye.
 
 ---
 
 ### 🔐 Seguridad del pipeline
 
-El acceso al servidor se realiza mediante:
+Se utilizan secretos de GitHub:
 
-- clave SSH privada
-- puerto SSH personalizado
-- secretos almacenados en GitHub
-
-Secrets utilizados:
-
+`DOCKERHUB_USERNAME`
+`DOCKERHUB_TOKEN`
 `EC2_HOST`
 `EC2_USER`
 `EC2_SSH_KEY`
 
-Estos secretos **no se almacenan en el repositorio.**
+Estos valores:
+
+- no están en el repositorio
+- se gestionan de forma segura en GitHub
 
 ---
 
@@ -106,8 +139,6 @@ Estos secretos **no se almacenan en el repositorio.**
 
 **URL pública:**  
 <http://gerardo-devops-wp.duckdns.org>
-
-El proyecto está preparado para funcionar con cualquier dominio válido.
 
 Ejemplo de acceso SSH seguro:
 
@@ -126,10 +157,11 @@ ssh -i ~/.ssh/your-key.pem ubuntu@your-server-ip -p 2222
 - **Aplicación:** WordPress (PHP-FPM 8.1)
 - **Base de Datos:** MySQL 5.7
 - **CLI:** wp-cli
+- **CI/CD:** GitHub Actions
+- **Registry:** Docker Hub
 - **DNS Dinámico:** DuckDNS
 - **SO:** Ubuntu Server
 - **Automatización:** Makefile
-- **CI/CD:** GitHub Actions
 - **SSL:** Let’s Encrypt (Certbot)
 
 ---
@@ -298,20 +330,25 @@ Este comando:
 
 ## 🌍 Despliegue automático (CI/CD)
 
----
+Ya no es necesario ejecutar comandos manuales.
 
-### Configurar entorno productivo
+Ahora:
 
 ```bash
-cp .env.example .env.prod
+git push origin main
 ```
 
-Editar .env.prod con:
+o
 
-- Dominio real
-- Bucket S3 real
-- Credenciales reales
-- Rutas de runtime productivas
+```bash
+git push origin dev
+```
+
+➡️ dispara automáticamente:
+
+- build de imagen
+- push a Docker Hub
+- deploy en servidor
 
 ---
 
@@ -348,7 +385,7 @@ make logs ENV=local         # o ENV=prod
 ## 🏗 Arquitectura de servicios
 
 - **MySQL** con healthcheck activo
-- **PHP-FPM** dependiente de MySQL healthy
+- **PHP-FPM** desacoplado (imagen remota)
 - **Nginx** en modo read-only
 - **wp-cli** bajo profile tools
 - **Certbot** para emisión y renovación SSL
@@ -357,12 +394,12 @@ make logs ENV=local         # o ENV=prod
 
 ## 🧠 Decisiones técnicas clave
 
-- Infraestructura desacoplada del código
-- Eliminación de hardcoding sensible
-- Separación clara de entornos
-- Runtime fuera del repositorio
-- Automatización progresiva y controlada
-- Integración de pipeline CI/CD
+- Separación CI / CD
+- Eliminación de build en producción
+- Uso de registry (Docker Hub)
+- Versionado de imágenes
+- Infraestructura desacoplada
+- Automatización end-to-end
 
 ---
 
@@ -370,13 +407,14 @@ make logs ENV=local         # o ENV=prod
 
 - ✔ Funcional
 - ✔ Portable
-- ✔ CI/CD automatizado
+- ✔ CI/CD completo
+- ✔ Deploy automático
+- ✔ Imagen versionada
 - ✔ Seguro a nivel configuración
 - ✔ Sin datos reales en el repositorio
 - ✔ Reproducible
-- ✔ Apto para portfolio DevOps Junior
 
-**Tag sugerido**: v1.3.0
+**Tag sugerido**: `v1.3.1`
 
 ---
 
