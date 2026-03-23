@@ -24,10 +24,20 @@ jobs:
           aws-region: us-east-1
 
       - name: Download assets from S3
+        env:
+          # Aquí definimos las variables que el comando 'aws' necesita leer
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          S3_PATH_WP: ${{ secrets.S3_PATH_WP }}
         run: |
-          aws s3 cp s3://${{ secrets.S3_BUCKET }}/{{ secrets.$(S3_PATH_WP) }} ./wp-content.tar.gz
+          # Ahora usamos la sintaxis de shell ($VARIABLE) porque ya están en el entorno
+          aws s3 cp s3://$S3_BUCKET/$S3_PATH_WP ./php/wp-content.tar.gz
+
+          # Entramos a la carpeta php para descomprimir ahí mismo
+          cd ./php
           tar -xzf wp-content.tar.gz
-          # Ahora tienes una carpeta ./wp-content lista para el Docker Build
+
+          # Eliminamos el tar para que no ocupe espacio extra en la imagen Docker
+          rm wp-content.tar.gz
 
       # Login Docker Hub
       - name: Login to Docker Hub
