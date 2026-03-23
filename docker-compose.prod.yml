@@ -9,7 +9,7 @@ services:
       - ${RUNTIME_DIR}/certbot/conf:/etc/letsencrypt:ro
       - ${RUNTIME_DIR}/certbot/www:/var/www/certbot:ro
     volumes_from:
-      - wp-php:ro
+      - php:ro
 
   certbot:
     image: certbot/certbot
