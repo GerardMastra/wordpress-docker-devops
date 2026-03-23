@@ -23,7 +23,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-- name: Download assets from S3
+      - name: Download assets from S3
         # IMPORTANTE: Aquí mapeamos los Secrets a variables de entorno del Runner
         env:
           MY_S3_BUCKET: ${{ secrets.S3_BUCKET }}
