@@ -48,20 +48,22 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Build imagen
+      # Build imagen (desde la raíz para ver todas las carpetas)
       - name: Build Docker image
         run: |
-          # Ejecutamos desde la raíz (.) para que vea todas las carpetas
-          # Usamos -f para decirle dónde está el Dockerfile
+          # 1. Creamos la imagen 'latest'
           docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/wordpress-devops:latest -f ./php/Dockerfile .
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/wordpress-devops:latest
+
+          # 2. Etiquetamos esa misma imagen con el SHA del commit
+          docker tag ${{ secrets.DOCKERHUB_USERNAME }}/wordpress-devops:latest \
+                     ${{ secrets.DOCKERHUB_USERNAME }}/wordpress-devops:${{ github.sha }}
 
       # Push imagen
       - name: Push Docker image
         run: |
+          # Ahora ambos tags existen y el push será exitoso
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/wordpress-devops:latest
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/wordpress-devops:${{ github.sha }}
-
   cd:
     runs-on: ubuntu-latest
     needs: ci
