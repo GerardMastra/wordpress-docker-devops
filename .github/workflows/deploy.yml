@@ -51,9 +51,10 @@ jobs:
       # Build imagen
       - name: Build Docker image
         run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/wordpress-devops:latest ./php
-          docker tag ${{ secrets.DOCKERHUB_USERNAME }}/wordpress-devops:latest \
-                     ${{ secrets.DOCKERHUB_USERNAME }}/wordpress-devops:${{ github.sha }}
+          # Ejecutamos desde la raíz (.) para que vea todas las carpetas
+          # Usamos -f para decirle dónde está el Dockerfile
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/wordpress-devops:latest -f ./php/Dockerfile .
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/wordpress-devops:latest
 
       # Push imagen
       - name: Push Docker image
