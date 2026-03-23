@@ -23,20 +23,22 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Download assets from S3
+- name: Download assets from S3
+        # IMPORTANTE: Aquí mapeamos los Secrets a variables de entorno del Runner
         env:
-          # Aquí definimos las variables que el comando 'aws' necesita leer
-          S3_BUCKET: ${{ secrets.S3_BUCKET }}
-          S3_PATH_WP: ${{ secrets.S3_PATH_WP }}
+          MY_S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          MY_S3_PATH: ${{ secrets.S3_PATH_WP }}
         run: |
-          # Ahora usamos la sintaxis de shell ($VARIABLE) porque ya están en el entorno
-          aws s3 cp s3://$S3_BUCKET/$S3_PATH_WP ./php/wp-content.tar.gz
+          # Verificación de seguridad (si esto falla, el log te dirá que están vacías)
+          if [ -z "$MY_S3_BUCKET" ]; then echo "Error: S3_BUCKET secret is empty"; exit 1; fi
 
-          # Entramos a la carpeta php para descomprimir ahí mismo
+          echo "Descargando desde s3://$MY_S3_BUCKET/$MY_S3_PATH..."
+
+          # Ejecutamos el comando usando las variables de entorno locales
+          aws s3 cp s3://$MY_S3_BUCKET/$MY_S3_PATH ./php/wp-content.tar.gz
+
           cd ./php
           tar -xzf wp-content.tar.gz
-
-          # Eliminamos el tar para que no ocupe espacio extra en la imagen Docker
           rm wp-content.tar.gz
 
       # Login Docker Hub
