@@ -25,7 +25,7 @@ services:
     container_name: wp-php
     restart: unless-stopped
     # FORZAMOS TU SCRIPT PERSONALIZADO
-    entrypoint: ["docker-entrypoint-custom.sh"]
+    entrypoint: ["/usr/local/bin/docker-entrypoint-custom.sh"]
     command: ["php-fpm"]
     env_file:
       - ${ENV_FILE}

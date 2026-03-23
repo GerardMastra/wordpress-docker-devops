@@ -10,10 +10,11 @@ COPY ./php/wp-content /var/www/html/wp-content
 COPY ./wordpress/wp-config.php.template /usr/src/wordpress/wp-config.php.template
 
 # 3. Copiamos el script de entrada
-COPY ./php/docker-entrypoint-custom.sh /usr/local/bin/
+COPY ./php/docker-entrypoint-custom.sh /usr/local/bin/docker-entrypoint-custom.sh
 
+# Aseguramos permisos de ejecución
 RUN chmod +x /usr/local/bin/docker-entrypoint-custom.sh
-RUN chown -R www-data:www-data /var/www/html/wp-content
 
-ENTRYPOINT ["docker-entrypoint-custom.sh"]
+# CORRECCIÓN CLAVE: Usar la ruta absoluta en el ENTRYPOINT
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint-custom.sh"]
 CMD ["php-fpm"]
