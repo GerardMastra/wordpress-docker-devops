@@ -33,8 +33,6 @@ services:
       WP_DB_NAME: ${MYSQL_DATABASE}
       WP_HOME: ${WP_HOME}
       WP_SITEURL: ${WP_SITEURL}
-    volumes:
-      - ${RUNTIME_DIR}/wordpress:/var/www/html
     networks:
       - wp-network
     mem_limit: 768m
@@ -48,8 +46,6 @@ services:
     image: nginx:1.25-alpine
     container_name: wp-nginx
     restart: always
-    volumes:
-      - ${RUNTIME_DIR}/wordpress:/var/www/html:ro
     depends_on:
       php:
         condition: service_started
