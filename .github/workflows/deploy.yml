@@ -25,7 +25,7 @@ jobs:
 
       - name: Download assets from S3
         run: |
-          aws s3 cp s3://${{ secrets.S3_BUCKET }}/assets/wp-content.tar.gz ./wp-content.tar.gz
+          aws s3 cp s3://${{ secrets.S3_BUCKET }}/{{ secrets.$(S3_PATH_WP) }} ./wp-content.tar.gz
           tar -xzf wp-content.tar.gz
           # Ahora tienes una carpeta ./wp-content lista para el Docker Build
 
