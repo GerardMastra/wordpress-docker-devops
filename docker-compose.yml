@@ -24,6 +24,9 @@ services:
     image: ${DOCKERHUB_USERNAME}/wordpress-devops:latest
     container_name: wp-php
     restart: unless-stopped
+    # FORZAMOS TU SCRIPT PERSONALIZADO
+    entrypoint: ["docker-entrypoint-custom.sh"]
+    command: ["php-fpm"]
     env_file:
       - ${ENV_FILE}
     environment:
