@@ -11,9 +11,9 @@ services:
     volumes_from:
       - php:ro
 
-  php:
-    volumes:
-      - ./runtime/wordpress:/var/www/html
+ php:
+   volumes:
+     - ${RUNTIME_DIR}/wordpress:/var/www/html
 
   certbot:
     image: certbot/certbot
