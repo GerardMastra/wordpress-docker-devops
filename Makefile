@@ -46,7 +46,7 @@ help: ## Muestra esta ayuda
 deploy: fix-perms ## Despliegue: Fija permisos de carpetas de datos y levanta el stack
 	@echo "$(GREEN)🚀 Iniciando despliegue automatizado...$(RESET)"
 	@if [ ! -f .env.$(ENV) ]; then echo "$(YELLOW)⚠️ Archivo .env.$(ENV) no encontrado.$(RESET)"; fi
-	$(DC) up -d
+	$(DC) up -d --force-recreate --build
 	@echo "$(GREEN)✅ Stack levantado. Revisa el estado con 'make ps'$(RESET)"
 
 # 2. Modificamos el fix-perms para que NO toque la carpeta wordpress (el código ya viene en la imagen)
