@@ -159,15 +159,20 @@ ssl-https: ## Activando Nginx en modo HTTPS
 
 prepare-restore: ## Ajusta permisos antes de restaurar
 	@echo "$(YELLOW)🔓 Preparando permisos para restauración...$(RESET)"
+	@mkdir -p $(RUNTIME_DIR)/wordpress
+	@mkdir -p $(RUNTIME_DIR)/mysql
 	sudo chown -R $(USER):$(USER) \
 	  $(RUNTIME_DIR)/wordpress \
 	  $(RUNTIME_DIR)/mysql
 
 restore-s3: prepare-restore ## Descarga assets desde S3
+	@set -e
 	@echo "$(YELLOW)📥 Restaurando desde S3...$(RESET)"
 
 	# WordPress assets
-	rm -rf $(RUNTIME_DIR)/wordpress/wp-content
+	@if [ -d "$(RUNTIME_DIR)/wordpress/wp-content" ]; then \
+		rm -rf $(RUNTIME_DIR)/wordpress/wp-content; \
+	fi
 	aws s3 cp s3://$(S3_BUCKET)/$(S3_PATH_WP) /tmp/wp-content.tar.gz
 	tar -xzf /tmp/wp-content.tar.gz -C $(RUNTIME_DIR)/wordpress/
 
