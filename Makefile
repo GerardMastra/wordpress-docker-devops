@@ -23,21 +23,41 @@ help: ## Muestra esta ayuda
 
 # --- SECCIÓN: DESPLIEGUE Y AUTOMATIZACIÓN --- 
 
-deploy: fix-perms generate-wp-config ## Despliegue completo: Valida .env.$(ENV), fija permisos y levanta el stack
+#deploy: fix-perms generate-wp-config ## Despliegue completo: Valida .env.$(ENV), fija permisos y levanta el stack
+#	@echo "$(GREEN)🚀 Iniciando despliegue automatizado...$(RESET)"
+#	@if [ ! -f .env.$(ENV) ]; then echo "$(YELLOW)⚠️ Archivo .env.$(ENV) no encontrado.$(RESET)"; fi
+#	$(DC) up -d
+
+#	@echo "$(GREEN)✅ Stack levantado. Revisa el estado con 'make ps'$(RESET)"
+
+#fix-perms: ## Permisos finales para contenedores
+#	@echo "$(YELLOW)🔒 Aplicando permisos de ejecución Docker...$(RESET)"
+#	sudo mkdir -p $(RUNTIME_DIR)/mysql/data
+#	sudo mkdir -p $(RUNTIME_DIR)/mysql/backups
+#	sudo mkdir -p $(RUNTIME_DIR)/wordpress
+#	sudo mkdir -p $(RUNTIME_DIR)/certbot/conf
+#	sudo mkdir -p $(RUNTIME_DIR)/certbot/www
+#	sudo chown -R 33:33 $(RUNTIME_DIR)/wordpress
+#	sudo chown -R 999:999 $(RUNTIME_DIR)/mysql/data
+#	sudo chown -R root:root $(RUNTIME_DIR)/certbot
+#	@echo "$(GREEN)✔️ Permisos runtime OK.$(RESET)"
+
+# 1. Quitamos 'generate-wp-config' de aquí porque en PROD lo hace Docker
+deploy: fix-perms ## Despliegue: Fija permisos de carpetas de datos y levanta el stack
 	@echo "$(GREEN)🚀 Iniciando despliegue automatizado...$(RESET)"
 	@if [ ! -f .env.$(ENV) ]; then echo "$(YELLOW)⚠️ Archivo .env.$(ENV) no encontrado.$(RESET)"; fi
 	$(DC) up -d
-
 	@echo "$(GREEN)✅ Stack levantado. Revisa el estado con 'make ps'$(RESET)"
 
-fix-perms: ## Permisos finales para contenedores
-	@echo "$(YELLOW)🔒 Aplicando permisos de ejecución Docker...$(RESET)"
+# 2. Modificamos el fix-perms para que NO toque la carpeta wordpress (el código ya viene en la imagen)
+fix-perms: ## Permisos solo para carpetas de PERSISTENCIA (datos)
+	@echo "$(YELLOW)🔒 Aplicando permisos de carpetas de datos...$(RESET)"
 	sudo mkdir -p $(RUNTIME_DIR)/mysql/data
 	sudo mkdir -p $(RUNTIME_DIR)/mysql/backups
-	sudo mkdir -p $(RUNTIME_DIR)/wordpress
 	sudo mkdir -p $(RUNTIME_DIR)/certbot/conf
 	sudo mkdir -p $(RUNTIME_DIR)/certbot/www
-	sudo chown -R 33:33 $(RUNTIME_DIR)/wordpress
+	# En PROD, no necesitamos crear ni dar permisos a $(RUNTIME_DIR)/wordpress 
+	# porque usamos el código de la imagen.
 	sudo chown -R 999:999 $(RUNTIME_DIR)/mysql/data
 	sudo chown -R root:root $(RUNTIME_DIR)/certbot
 	@echo "$(GREEN)✔️ Permisos runtime OK.$(RESET)"
@@ -50,12 +70,17 @@ setup-wp:
 	$(DC) run --rm wp-cli wp elementor sync_library
 	@echo "✅ WordPress configurado y optimizado."
 
-generate-wp-config: ## Genera wp-config.php desde template
-	@echo "$(YELLOW)🧩 Generando wp-config.php de forma segura...$(RESET)"
-	@# Definimos qué variables queremos que envsubst reemplace
+#generate-wp-config: ## Genera wp-config.php desde template
+#	@echo "$(YELLOW)🧩 Generando wp-config.php de forma segura...$(RESET)"
+#	@# Definimos qué variables queremos que envsubst reemplace
+#	@export VARS='$$WP_DB_NAME,$$WP_DB_USER,$$WP_DB_PASSWORD,$$WP_DB_HOST,$$WP_HOME,$$WP_SITEURL'; \
+#	sudo sh -c "envsubst '$$VARS' < wordpress/wp-config.php.template > $(RUNTIME_DIR)/wordpress/wp-config.php"
+#	sudo chown 33:33 $(RUNTIME_DIR)/wordpress/wp-config.php
+
+generate-wp-config: 
+	@echo "$(YELLOW)🧩 Generando wp-config.php local (Solo desarrollo)...$(RESET)"
 	@export VARS='$$WP_DB_NAME,$$WP_DB_USER,$$WP_DB_PASSWORD,$$WP_DB_HOST,$$WP_HOME,$$WP_SITEURL'; \
-	sudo sh -c "envsubst '$$VARS' < wordpress/wp-config.php.template > $(RUNTIME_DIR)/wordpress/wp-config.php"
-	sudo chown 33:33 $(RUNTIME_DIR)/wordpress/wp-config.php
+	envsubst '$$VARS' < wordpress/wp-config.php.template > wordpress/wp-config.php
 
 up-prod: ## 🚀 EJECUCIÓN TOTAL: Infra, SSL y Restauración de datos
 	@echo "$(GREEN)🔥 Iniciando automatización completa V1.2...$(RESET)"
