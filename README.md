@@ -1,425 +1,233 @@
-# 🐳 WordPress en Docker desplegado en AWS Lightsail
+# 🐳 WordPress Docker CI/CD en AWS – Arquitectura Desacoplada
 
-## Versión v1.3.1 – Full CI/CD Pipeline (Build + Push + Deploy)
+## 🚀 Versión v1.3.2 – Pipeline CI/CD con Runtime Dinámico
 
-Proyecto **DevOps Junior** que demuestra el despliegue de una aplicación **WordPress real** utilizando **Docker Compose**, ejecutada en **AWS Lightsail**, con:
+Proyecto **DevOps Junior** que implementa un flujo completo de **Integración Continua y Despliegue Continuo (CI/CD)** para una aplicación real de **WordPress**, desplegada en **AWS Lightsail**.
 
-- Separación estricta entre **código (repo)** y **datos (runtime)**
-- Persistencia fuera del repositorio
-- Restauración desde **Amazon S3**
-- Generación segura de configuración sensible
-- Automatización operativa mediante **Makefile**
-- Arranque ordenado entre servicios (**healthchecks**)
-- Separación de entornos (`local` y `prod`)
-- ***Pipeline CI/CD completo con build, push y deploy automático**
+El proyecto demuestra prácticas modernas de DevOps:
 
-El objetivo es demostrar, sino **flujo DevOps end-to-end**, desde el código hasta producción.
+* Separación entre **imagen, datos y configuración**
+* Uso de **Docker como runtime inmutable**
+* Persistencia externa mediante **volúmenes y S3**
+* Pipeline automatizado con **GitHub Actions**
+* Despliegue remoto mediante **SSH**
+* Infraestructura reproducible
 
 ---
 
-## 🎯 Objetivo de la versión v1.3.1
+## 🎯 Objetivo
 
-> Implementar un pipeline CI/CD completo que construya la imagen Docker, la publique en Docker Hub y despliegue automáticamente en el servidor.
+Implementar un pipeline **end-to-end** donde:
 
-Esta versión introduce:
-
-- Etapa **CI**: build y push de imagen Docker
-- Publicación en Docker Hub
-- Versionado de imagen (`latest` + commit SHA)
-- Etapa **CD**: deploy automático vía SSH
-- Eliminación del build en servidor (principio de inmutabilidad)
+1. El código se sube a GitHub
+2. Se construye una imagen Docker
+3. Se publica en Docker Hub
+4. Se despliega automáticamente en producción
+5. Los datos se restauran dinámicamente desde S3
 
 ---
 
-## ⚙️ Pipeline CI/CD
+## ⚙️ Arquitectura
 
-Se implementó un pipeline con **GitHub Actions.**
+## 🧱 Componentes
+
+* **WordPress (PHP-FPM 8.2 Alpine)**
+* **Nginx**
+* **MySQL 5.7**
+* **Certbot (SSL)**
+* **wp-cli**
+* **Docker Compose**
+* **AWS Lightsail**
+* **Amazon S3**
+
+---
+
+## 🧠 Principio clave
+
+> La imagen Docker NO contiene datos.
+
+### Separación de responsabilidades
+
+| Componente   | Responsabilidad         |
+| ------------ | ----------------------- |
+| Docker Image | Lógica de aplicación    |
+| S3           | Datos (wp-content + DB) |
+| Volumen      | Persistencia            |
+| Entrypoint   | Configuración dinámica  |
+
+---
+
+## 🔄 Pipeline CI/CD
 
 Archivo:
 
-`.github/workflows/deploy.yml`
+```yml
+.github/workflows/deploy.yml
+```
 
-El pipeline se ejecuta en cada `push` a:
+Se ejecuta en cada push a:
 
-- `main`
-- `dev`
+* `main`
+* `dev`
 
 ---
 
-### 🔄 Flujo completo del pipeline
+## 🧪 CI – Build & Push
 
-#### 🧪 CI - Build & Push
+1. Checkout del repo
+2. Login a Docker Hub
+3. Build de imagen
+4. Tag:
 
-**1.** Checkout del repositorio
-**2.** Login a Docker Hub
-**3.** Build de imagen desde `./php`
-**4.** Tag de imagen:
-    - `latest`
-    - `${commit_sha}`
-**5.** Push a Docker Hub
-
-Ejemplo:
+   * `latest`
+   * `commit SHA`
+5. Push al registry
 
 ```bash
-docker build -t user/wordpress-devops:latest ./php
+docker build -t user/wordpress-devops:latest -f php/Dockerfile .
 docker push user/wordpress-devops:latest
 ```
 
 ---
 
-#### 🚀 CD - Deploy automático
+## 🚀 CD – Deploy automático
 
-**1.** Conexión SSH al servidor
-**2.** Sincronización del repo
-**3.** Descarga de la nueva imagen
-
-```bash
-docker pull user/wordpress-devops:latest
-```
-
-**4.** Recreación del stack:
+1. Conexión SSH al servidor
+2. Sync del repo
+3. Pull de imagen
+4. Restauración desde S3
+5. Levantamiento del stack
 
 ```bash
-make down ENV=prod
-make up-prod ENV=prod
+docker compose pull
+make restore-s3 ENV=prod
+docker compose up -d
 ```
 
 ---
 
-### 🐳 Cambio clave de arquitectura
+## 🔐 Configuración dinámica
 
-Antes (v1.3.0):
+El archivo `wp-config.php` no se versiona.
 
-```yaml
-php:
-  build: ./php
-  image: user/wordpress-devops:latest
-```
-
-Ahora (v1.3.1):
-
-```yaml
-php:
-  image: user/wordpress-devops:latest
-```
-
-#### 🧠 ¿Por qué es importante este cambio?
-
-Se elimina el build en producción.
-
-Esto permite:
-
-- Entornos inmutables
-- Deploys reproducibles
-- Separación real entre CI y CD
-- Mejor práctica DevOps
-
-El servidor ahora **solo ejecuta imágenes**, no las construye.
-
----
-
-### 🔐 Seguridad del pipeline
-
-Se utilizan secretos de GitHub:
-
-`DOCKERHUB_USERNAME`
-`DOCKERHUB_TOKEN`
-`EC2_HOST`
-`EC2_USER`
-`EC2_SSH_KEY`
-
-Estos valores:
-
-- no están en el repositorio
-- se gestionan de forma segura en GitHub
-
----
-
-## 🌐 Entorno demo
-
-**URL pública:**  
-<http://gerardo-devops-wp.duckdns.org>
-
-Ejemplo de acceso SSH seguro:
-
-```bash
-ssh -i ~/.ssh/your-key.pem ubuntu@your-server-ip -p 2222
-```
-
----
-
-## 🛠 Stack tecnológico
-
-- **Cloud:** AWS Lightsail
-- **Almacenamiento:** Amazon S3
-- **Contenedores:** Docker + Docker Compose
-- **Web Server:** Nginx
-- **Aplicación:** WordPress (PHP-FPM 8.1)
-- **Base de Datos:** MySQL 5.7
-- **CLI:** wp-cli
-- **CI/CD:** GitHub Actions
-- **Registry:** Docker Hub
-- **DNS Dinámico:** DuckDNS
-- **SO:** Ubuntu Server
-- **Automatización:** Makefile
-- **SSL:** Let’s Encrypt (Certbot)
-
----
-
-## 🏗️ Estructura actual del repositorio
-
-```text
-.
-├── .github/
-│   └── workflows/
-│       └── deploy.yml
-│
-├── docker-compose.local.yml
-├── docker-compose.prod.yml
-├── Makefile
-├── README.md
-├── .env.example
-├── .env.local
-├── .env.prod
-├── .gitignore
-│
-├── mysql/
-│   └── .gitkeep
-│
-├── nginx/
-│   ├── default.conf
-│   ├── default.http.conf
-│   └── default.https.conf
-│
-├── php/
-│   └── Dockerfile
-│
-├── scripts/
-│   └── bootstrap-secure.sh
-│
-└── wordpress/
-    ├── wp-config.php.template
-    └── mkt/default.example.php
-```
-
-El repositorio contiene únicamente:
-
-- Código
-- Plantillas
-- Definición de infraestructura
-- Scripts de bootstrap
-- Configuración CI/CD
-
-No contiene:
-
-- Datos persistentes
-- Certificados
-- Backups
-- Credenciales reales
-
----
-
-## 🧠 Separación de entornos
-
-`.env.example`
-
-Contiene únicamente placeholders genéricos:
-
-```bash
-MYSQL_ROOT_PASSWORD=change_me_root
-DOMAIN_NAME=example.local
-S3_BUCKET=your-bucket-name
-```
-
-Este archivo es seguro para versionar.
-
----
-
-`.env.local` y `.env.prod`
-
-Contienen valores reales específicos de infraestructura.
-
-Estos archivos:
-
-- No deben compartirse públicamente
-- No deben contener secretos en repositorios públicos
-- Son específicos de cada entorno
-
----
-
-## 🗂 Runtime (fuera del repositorio)
-
-El runtime vive fuera del repo:
-
-```bash
-/opt/wordpress-runtime/
-├── wordpress/
-│   ├── wp-config.php
-│   ├── wp-content/
-│   └── ...
-├── mysql/
-└── certbot/
-```
-
-Esto permite:
-
-- Separar infraestructura de datos
-- Evitar subir secretos
-- Reproducir el entorno fácilmente
-
----
-
-## 🔐 Gestión segura de configuración
-
-`wp-config.php` no se versiona
-
-Se genera dinámicamente desde:
+Se genera automáticamente desde:
 
 ```bash
 wordpress/wp-config.php.template
 ```
 
-usando variables del entorno (.env.local o .env.prod)
+Mediante el script:
 
-Generación:
+```sh
+php/docker-entrypoint-custom.sh
+```
+
+Uso de:
 
 ```bash
-make generate-wp-config
+envsubst
 ```
 
 ---
 
-## 🚀 Despliegue en entorno local
+## 🗂 Runtime
 
-### 1️⃣ Clonar repositorio en entorno local
+Ubicación en servidor:
 
-```bash
-git clone https://github.com/GerardMastra/wordpress-docker-devops.git
-cd wordpress-docker-devops
+```text
+/opt/wordpress-runtime/
+├── wordpress/
+│   └── wp-content/
+├── mysql/
+└── certbot/
 ```
 
 ---
 
-### 2️⃣ Configurar entorno local
+## ☁️ Restauración desde S3
+
+Los datos no están en el repo.
+
+Se descargan en runtime:
+
+```bash
+make restore-s3 ENV=prod
+```
+
+Incluye:
+
+* `wp-content`
+* dump de MySQL
+
+---
+
+## 🧪 Entorno local
 
 ```bash
 cp .env.example .env.local
-```
-
-Editar .env.local con valores reales.
-
----
-
-### 3️⃣ Deploy local
-
-```bash
 make up-local ENV=local
 ```
 
-Este comando:
-
-- Prepara permisos
-- Genera wp-config.php
-- Levanta contenedores
-- Configura SSL
-- Restaura datos desde S3
-- Importa base de datos
-- Configura WordPress vía wp-cli
-
 ---
 
-## 🌍 Despliegue automático (CI/CD)
-
-Ya no es necesario ejecutar comandos manuales.
-
-Ahora:
+## 🌍 Deploy automático
 
 ```bash
 git push origin main
 ```
 
-o
+Dispara:
 
-```bash
-git push origin dev
-```
-
-➡️ dispara automáticamente:
-
-- build de imagen
-- push a Docker Hub
-- deploy en servidor
-
----
-
-### Despliegue
-
-Cuando se realiza un `push` al repositorio:
-
-   `git push origin main`
-
-o
-
-   `git push origin dev`
-
-el pipeline ejecuta automáticamente:
-
-- sincronización del repositorio
-- reconstrucción del stack
-- redeploy del sistema
+* CI → build + push
+* CD → deploy en EC2
 
 ---
 
 ## 🧰 Comandos útiles
 
 ```bash
-make up-local ENV=local
 make up-prod ENV=prod
-make down ENV=local         # o ENV=prod
-make ps ENV=local           # o ENV=prod
-make logs ENV=local         # o ENV=prod
+make down ENV=prod
+make logs ENV=prod
+make ps ENV=prod
 ```
 
 ---
 
-## 🏗 Arquitectura de servicios
+## 🔥 Cambios clave en v1.3.2
 
-- **MySQL** con healthcheck activo
-- **PHP-FPM** desacoplado (imagen remota)
-- **Nginx** en modo read-only
-- **wp-cli** bajo profile tools
-- **Certbot** para emisión y renovación SSL
+* Eliminación de `wp-content` del build
+* Uso exclusivo de S3 para datos
+* Volúmenes como fuente de verdad
+* Entrypoint dinámico
+* Pipeline completamente desacoplado
+* Corrección de naming en Docker Hub
+* Flujo idempotente
 
 ---
 
-## 🧠 Decisiones técnicas clave
+## 🧠 Decisiones técnicas
 
-- Separación CI / CD
-- Eliminación de build en producción
-- Uso de registry (Docker Hub)
-- Versionado de imágenes
-- Infraestructura desacoplada
-- Automatización end-to-end
+* CI/CD separado correctamente
+* Imagen inmutable
+* Datos externos (S3)
+* Infra reproducible
+* Seguridad mediante variables de entorno
 
 ---
 
 ## 📌 Estado del proyecto
 
-- ✔ Funcional
-- ✔ Portable
-- ✔ CI/CD completo
-- ✔ Deploy automático
-- ✔ Imagen versionada
-- ✔ Seguro a nivel configuración
-- ✔ Sin datos reales en el repositorio
-- ✔ Reproducible
-
-**Tag sugerido**: `v1.3.1`
+* ✔ CI/CD completo
+* ✔ Deploy automático funcional
+* ✔ Arquitectura desacoplada
+* ✔ Persistencia externa
+* ✔ Producción estable
 
 ---
 
 ## 👤 Autor
 
-Gerardo Angel Mastramico
+Gerardo Mastramico
 DevOps Junior
 GitHub: <https://github.com/GerardMastra>
