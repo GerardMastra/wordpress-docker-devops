@@ -1,0 +1,18 @@
+services:
+  backup:
+    build: ./backup
+    container_name: backup-test
+    depends_on:
+      - mysql
+    volumes:
+      - wordpress_data:/var/www/html
+      - backup_data:/backup
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      ENV: backup
+      DISABLE_S3: "true"
+      S3_BUCKET: dummy-bucket
+    command: sh -c "sleep infinity"

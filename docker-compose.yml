@@ -107,3 +107,7 @@ services:
 networks:
   wp-network:
     driver: bridge
+
+volumes:
+  wordpress_data:
+  backup_data:

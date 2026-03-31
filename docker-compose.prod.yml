@@ -41,3 +41,21 @@ services:
          certbot renew;
          sleep 12h & wait $${!};
        done"
+  backup:
+    build: ./backup
+    container_name: backup-service
+    depends_on:
+      - mysql
+    volumes:
+      - wordpress_data:/var/www/html/wp-content
+      - backup_data:/backup
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_DEFAULT_REGION: ${AWS_REGION}
+      S3_BUCKET: ${S3_BUCKET}
+    restart: always
