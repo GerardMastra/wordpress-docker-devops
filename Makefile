@@ -4,7 +4,7 @@
 
 ENV ?= local
 ENV_FILE := .env.$(ENV)
-COMPOSE_FILES := -f docker-compose.yml -f docker-compose.$(ENV).yml
+COMPOSE_FILES := -f docker-compose.yml -f docker-compose.$(ENV).yml -f docker-compose.backup-test.yml
 
 DC := docker compose --env-file $(ENV_FILE) $(COMPOSE_FILES)
 
