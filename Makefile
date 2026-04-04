@@ -183,12 +183,14 @@ bash-php: ## Accede al contenedor PHP
 # --- SECCIÓN: CI/CD SIMULAR EN ENTORNO LOCAL ---
 
 backup-test:
+	@grep -q "gerardo-devops-wp.duckdns.org" /etc/hosts || \
+		(echo "127.0.0.1 gerardo-devops-wp.duckdns.org" | sudo tee -a /etc/hosts > /dev/null)
 	docker compose \
-	--env-file .env.backup \
-	-f docker-compose.yml \
-	-f docker-compose.local.yml \
-	-f docker-compose.backup-test.yml \
-	up -d --build
+		--env-file .env.backup \
+		-f docker-compose.yml \
+		-f docker-compose.local.yml \
+		-f docker-compose.backup-test.yml \
+		up -d --build
 
 backup-shell:
 	docker exec -it backup-test sh

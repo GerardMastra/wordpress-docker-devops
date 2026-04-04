@@ -5,8 +5,10 @@ services:
     depends_on:
       - mysql
     volumes:
-      - wordpress_data:/var/www/html
+      - wordpress_data:/var/www/html/wp-content
       - backup_data:/backup
+    networks:
+      - wp-network
     environment:
       MYSQL_HOST: mysql
       MYSQL_USER: ${MYSQL_USER}

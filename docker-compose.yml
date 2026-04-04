@@ -24,11 +24,12 @@ services:
     image: ${DOCKERHUB_USERNAME}/wordpress-devops:latest
     container_name: wp-php
     restart: unless-stopped
-    # FORZAMOS TU SCRIPT PERSONALIZADO
     entrypoint: ["/usr/local/bin/docker-entrypoint-custom.sh"]
     command: ["php-fpm"]
     env_file:
        - ${ENV_FILE}
+    volumes:
+       - wordpress_data:/var/www/html
     environment:
       WP_DB_HOST: mysql:3306
       WP_DB_USER: ${MYSQL_USER}

@@ -41,6 +41,7 @@ services:
          certbot renew;
          sleep 12h & wait $${!};
        done"
+
   backup:
     build: ./backup
     container_name: backup-service
@@ -49,6 +50,8 @@ services:
     volumes:
       - wordpress_data:/var/www/html/wp-content
       - backup_data:/backup
+    networks:
+      - wp-network
     environment:
       MYSQL_HOST: mysql
       MYSQL_USER: ${MYSQL_USER}
