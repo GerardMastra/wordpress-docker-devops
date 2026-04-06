@@ -1,8 +1,8 @@
 # 🐳 WordPress Docker CI/CD en AWS – Arquitectura Desacoplada
 
-## 🚀 Versión v1.3.2 – Pipeline CI/CD con Runtime Dinámico
+## 🚀 Versión v1.4.0 – Automatización de Backups con S3
 
-Proyecto **DevOps Junior** que implementa un flujo completo de **Integración Continua y Despliegue Continuo (CI/CD)** para una aplicación real de **WordPress**, desplegada en **AWS Lightsail**.
+Proyecto **DevOps Junior** que implementa un flujo completo de **CI/CD + automatización de backups** para una aplicación real de **WordPress**, desplegada en **AWS Lightsail**.
 
 El proyecto demuestra prácticas modernas de DevOps:
 
@@ -11,6 +11,7 @@ El proyecto demuestra prácticas modernas de DevOps:
 * Persistencia externa mediante **volúmenes y S3**
 * Pipeline automatizado con **GitHub Actions**
 * Despliegue remoto mediante **SSH**
+* **Automatización de backups con contenedor dedicado**
 * Infraestructura reproducible
 
 ---
@@ -24,6 +25,7 @@ Implementar un pipeline **end-to-end** donde:
 3. Se publica en Docker Hub
 4. Se despliega automáticamente en producción
 5. Los datos se restauran dinámicamente desde S3
+6. **Se generan backups automáticos de la aplicación y base de datos hacia S3**
 
 ---
 
@@ -39,6 +41,7 @@ Implementar un pipeline **end-to-end** donde:
 * **Docker Compose**
 * **AWS Lightsail**
 * **Amazon S3**
+* **Contenedor de Backups (cron + scripts)**
 
 ---
 
@@ -48,12 +51,13 @@ Implementar un pipeline **end-to-end** donde:
 
 ### Separación de responsabilidades
 
-| Componente   | Responsabilidad         |
-| ------------ | ----------------------- |
-| Docker Image | Lógica de aplicación    |
-| S3           | Datos (wp-content + DB) |
-| Volumen      | Persistencia            |
-| Entrypoint   | Configuración dinámica  |
+| Componente       | Responsabilidad         |
+| ---------------- | ----------------------- |
+| Docker Image     | Lógica de aplicación    |
+| S3               | Datos (wp-content + DB) |
+| Volumen          | Persistencia            |
+| Entrypoint       | Configuración dinámica  |
+| Backup Container | Backups automáticos     |
 
 ---
 
@@ -74,15 +78,6 @@ Se ejecuta en cada push a:
 
 ## 🧪 CI – Build & Push
 
-1. Checkout del repo
-2. Login a Docker Hub
-3. Build de imagen
-4. Tag:
-
-   * `latest`
-   * `commit SHA`
-5. Push al registry
-
 ```bash
 docker build -t user/wordpress-devops:latest -f php/Dockerfile .
 docker push user/wordpress-devops:latest
@@ -91,12 +86,6 @@ docker push user/wordpress-devops:latest
 ---
 
 ## 🚀 CD – Deploy automático
-
-1. Conexión SSH al servidor
-2. Sync del repo
-3. Pull de imagen
-4. Restauración desde S3
-5. Levantamiento del stack
 
 ```bash
 docker compose pull
@@ -116,23 +105,15 @@ Se genera automáticamente desde:
 wordpress/wp-config.php.template
 ```
 
-Mediante el script:
+Mediante:
 
 ```sh
 php/docker-entrypoint-custom.sh
 ```
 
-Uso de:
-
-```bash
-envsubst
-```
-
 ---
 
 ## 🗂 Runtime
-
-Ubicación en servidor:
 
 ```text
 /opt/wordpress-runtime/
@@ -146,10 +127,6 @@ Ubicación en servidor:
 
 ## ☁️ Restauración desde S3
 
-Los datos no están en el repo.
-
-Se descargan en runtime:
-
 ```bash
 make restore-s3 ENV=prod
 ```
@@ -161,25 +138,113 @@ Incluye:
 
 ---
 
-## 🧪 Entorno local
+## 🔥 NUEVO — Sistema de Backups Automáticos
+
+## 🧠 Enfoque
+
+Se implementa un **contenedor independiente de backups**, desacoplado de la aplicación principal.
+
+👉 Esto permite:
+
+* Automatización mediante **cron**
+* Independencia del ciclo de vida de WordPress
+* Escalabilidad y mantenimiento simple
+
+---
+
+## 📦 Tipos de backup
+
+### 🗄 Base de datos
 
 ```bash
-cp .env.example .env.local
-make up-local ENV=local
+mysqldump → .sql
 ```
 
 ---
 
-## 🌍 Deploy automático
+### 📁 Archivos WordPress
 
 ```bash
-git push origin main
+wp-content → .tar.gz
 ```
 
-Dispara:
+---
 
-* CI → build + push
-* CD → deploy en EC2
+## ☁️ Destino
+
+Los backups se almacenan en:
+
+```text
+Amazon S3
+```
+
+Ejemplo:
+
+```text
+s3://<bucket>/backups/
+```
+
+---
+
+## 🧪 Testing en entorno local
+
+```bash
+make backup-test
+make backup-shell
+```
+
+Dentro del contenedor:
+
+```bash
+/scripts/backup-db.sh
+/scripts/backup-files.sh
+```
+
+---
+
+## 🚀 Ejecución en producción (manual)
+
+```bash
+docker compose \
+  --env-file .env.prod \
+  -f docker-compose.yml \
+  -f docker-compose.prod.yml \
+  up -d --build
+```
+
+Acceso:
+
+```bash
+docker exec -it backup-service sh
+```
+
+Ejecución:
+
+```bash
+/scripts/backup-db.sh
+/scripts/backup-files.sh
+```
+
+---
+
+## ⏱ Automatización
+
+El contenedor utiliza:
+
+```bash
+crond
+```
+
+Para ejecutar backups automáticamente según la configuración definida.
+
+---
+
+## ⚠️ Consideraciones
+
+* El contenedor debe compartir red con MySQL
+* Se debe usar el nombre de servicio (`mysql`) como host
+* AWS requiere región válida (ej: `us-east-1`, no `us-east-1a`)
+* Los scripts deben manejar errores (`set -e`)
 
 ---
 
@@ -194,25 +259,26 @@ make ps ENV=prod
 
 ---
 
-## 🔥 Cambios clave en v1.3.2
+## 🔥 Cambios clave en v1.4.0
 
-* Eliminación de `wp-content` del build
-* Uso exclusivo de S3 para datos
-* Volúmenes como fuente de verdad
-* Entrypoint dinámico
-* Pipeline completamente desacoplado
-* Corrección de naming en Docker Hub
-* Flujo idempotente
+* Implementación de contenedor de backups independiente
+* Automatización con cron
+* Integración con Amazon S3
+* Scripts de backup desacoplados
+* Soporte para testing local de backups
+* Mejora en manejo de errores en scripts
+* Validación manual en producción sin CI/CD
 
 ---
 
 ## 🧠 Decisiones técnicas
 
-* CI/CD separado correctamente
-* Imagen inmutable
-* Datos externos (S3)
-* Infra reproducible
-* Seguridad mediante variables de entorno
+* Arquitectura desacoplada
+* Contenedor dedicado para backups
+* Automatización mediante cron
+* Persistencia externa en S3
+* Testing aislado por entorno
+* Estrategia de despliegue segura mediante feature branch
 
 ---
 
@@ -222,7 +288,9 @@ make ps ENV=prod
 * ✔ Deploy automático funcional
 * ✔ Arquitectura desacoplada
 * ✔ Persistencia externa
-* ✔ Producción estable
+* ✔ Backups automáticos funcionando
+* ✔ Integración con S3
+* ✔ Testing local y validación en producción
 
 ---
 
