@@ -89,3 +89,18 @@ services:
     networks:
       - wp-network
     restart: unless-stopped
+
+  mysql-exporter:
+    image: prom/mysqld-exporter
+    container_name: mysql-exporter
+    volumes:
+      - ./monitoring/.my.cnf:/home/exporter/.my.cnf:ro
+    # IMPORTANTE: Indicamos al exportador que use ese archivo
+    command:
+      - "--config.my-cnf=/home/exporter/.my.cnf"
+    depends_on:
+      - mysql
+    ports:
+      - "9104:9104"
+    networks:
+      - wp-network
