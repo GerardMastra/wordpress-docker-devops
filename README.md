@@ -1,16 +1,8 @@
 # 🐳 WordPress DevOps Project — Docker, AWS, CI/CD & Observability
 
-## 🚀 Versión v1.5.0 — Observabilidad con Prometheus y Grafana
+## 🚀 Versión v1.5.1 — Observabilidad completa + MySQL + Alertas
 
 Proyecto **DevOps Junior avanzado** que implementa una plataforma completa de despliegue, backup y monitoreo para una aplicación real de **WordPress**, ejecutándose en **AWS Lightsail**.
-
-Este proyecto demuestra un enfoque **end-to-end** de DevOps moderno:
-
-* CI/CD automatizado
-* Infraestructura reproducible con Docker
-* Persistencia desacoplada (S3 + volúmenes)
-* Backups automáticos
-* **Observabilidad real con métricas y dashboards**
 
 ---
 
@@ -23,7 +15,8 @@ Construir un sistema completo donde:
 3. Se despliega automáticamente en producción
 4. Se restauran datos desde S3
 5. Se generan backups automáticos
-6. **Se monitorea el sistema en tiempo real**
+6. Se monitorea el sistema en tiempo real
+7. Se detectan problemas mediante alertas
 
 ---
 
@@ -31,57 +24,40 @@ Construir un sistema completo donde:
 
 ### Componentes principales
 
-* **WordPress (PHP-FPM 8.2 Alpine)**
-* **Nginx**
-* **MySQL 5.7**
-* **Certbot (SSL)**
-* **Docker Compose**
-* **AWS Lightsail**
-* **Amazon S3**
-* **Contenedor de Backups (cron + scripts)**
-
-### 🔥 Observabilidad (nuevo)
-
-* **Prometheus (recolección de métricas)**
-* **Node Exporter (CPU, RAM, sistema)**
-* **Grafana (visualización y dashboards)**
+* WordPress (PHP-FPM)
+* Nginx
+* MySQL
+* Certbot (SSL)
+* Docker Compose
+* AWS Lightsail
+* Amazon S3
+* Contenedor de Backups (cron + scripts)
 
 ---
 
-## 🧠 Principio clave
+### 📊 Observabilidad
 
-> La imagen Docker NO contiene datos.
-
-### Separación de responsabilidades
-
-| Componente       | Responsabilidad         |
-| ---------------- | ----------------------- |
-| Docker Image     | Lógica de aplicación    |
-| S3               | Datos (wp-content + DB) |
-| Volumen          | Persistencia            |
-| Entrypoint       | Configuración dinámica  |
-| Backup Container | Backups automáticos     |
-| Prometheus       | Recolección de métricas |
-| Grafana          | Visualización           |
+* Prometheus → métricas
+* Node Exporter → sistema
+* MySQL Exporter → base de datos
+* Grafana → dashboards + alertas
 
 ---
 
 ## 🔄 CI/CD Pipeline
 
-Archivo:
-
 ```bash
 .github/workflows/deploy.yml
 ```
 
-### 🧪 CI – Build & Push
+### CI
 
 ```bash
 docker build -t user/wordpress-devops:latest -f php/Dockerfile .
 docker push user/wordpress-devops:latest
 ```
 
-### 🚀 CD – Deploy automático
+### CD
 
 ```bash
 docker compose pull
@@ -93,100 +69,104 @@ docker compose up -d
 
 ## 💾 Backups automáticos
 
-### 🗄 Base de datos
+### 🧪 Testing en entorno local
 
 ```bash
-mysqldump → .sql
+make backup-test
+make backup-shell
 ```
 
-### 📁 Archivos
+Dentro del contenedor:
 
 ```bash
-wp-content → .tar.gz
+/scripts/backup-db.sh
+/scripts/backup-files.sh
 ```
 
-### ☁️ Destino
+---
+
+### 🚀 Ejecución en producción
 
 ```bash
-Amazon S3
+docker compose \
+  --env-file .env.prod \
+  -f docker-compose.yml \
+  -f docker-compose.prod.yml \
+  up -d --build
 ```
+
+Acceso al contenedor:
+
+```bash
+docker exec -it backup-service sh
+```
+
+Ejecución manual:
+
+```bash
+/scripts/backup-db.sh
+/scripts/backup-files.sh
+```
+
+---
 
 ### ⏱ Automatización
 
 * Contenedor dedicado
 * Uso de `cron`
-* Scripts desacoplados
+* Backups a Amazon S3
 
 ---
 
 ## 📊 Observabilidad (Prometheus + Grafana)
 
-### 🧠 Métricas recolectadas
+### 📈 Dashboards
 
-* Uso de CPU
-* Memoria RAM
-* Load average
-* Red
-* Estado del sistema
+* Node Exporter → **ID 1860**
+* MySQL → **ID 14057**
 
-### 🔍 Ejemplo de query
+---
+
+### 🔎 Queries de ejemplo
 
 ```promql
 node_memory_MemAvailable_bytes
 ```
 
-### 📈 Dashboards
-
-Se implementó dashboard oficial:
-
-* **Node Exporter Full (ID: 1860)**
-
-Incluye visualización en tiempo real de:
-
-* CPU
-* RAM
-* Disco
-* Red
+```promql
+mysql_up
+```
 
 ---
 
-## 🧪 Validación
+## 🚨 Alertas
 
-* Prometheus accesible en `:9090`
-* Grafana accesible en `:3000`
-* Targets en estado `UP`
-* Métricas disponibles en PromQL
-* Dashboards cargando correctamente
+### CPU alta
 
----
+```promql
+100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[1m])) * 100)
+```
 
-## 🗂 Runtime
+### RAM baja
 
-```tree
-/opt/wordpress-runtime/
-├── wordpress/
-│   └── wp-content/
-├── mysql/
-└── certbot/
+```promql
+(node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100
+```
+
+### MySQL caído
+
+```promql
+mysql_up
 ```
 
 ---
 
 ## ⚙️ Entornos
 
-El proyecto soporta:
-
-* **Local**
-* **Producción**
-
-Mediante:
-
 ```bash
 .env.local
 .env.prod
 ```
-
-Y múltiples archivos:
 
 ```bash
 docker-compose.yml
@@ -198,32 +178,32 @@ docker-compose.prod.yml
 
 ## 🧠 Lo que demuestra este proyecto
 
-* Manejo de entornos (local/prod)
-* Deploy automatizado real
+* CI/CD real
+* Deploy automático
+* Manejo de entornos
 * Persistencia desacoplada
-* Backup y recuperación de datos
-* Observabilidad y monitoreo
-* Debugging en producción (red, puertos, servicios)
-* Uso de Docker networking (service discovery)
+* Backups automatizados + testing local
+* Observabilidad completa
+* Alertas proactivas
+* Debugging real en producción
 
 ---
 
 ## 📸 Screenshots
 
-👉 Agregar aquí:
-
-* Dashboard de Grafana
-* Prometheus targets en UP
+👉 Grafana (Node + MySQL)
+👉 Prometheus Targets (UP)
+👉 Alertas
 
 ---
 
-## 🔥 Cambios clave en v1.5.0
+## 🔥 Cambios clave en v1.5.1
 
-* Implementación de Prometheus
-* Integración de Node Exporter
-* Implementación de Grafana
-* Dashboards en tiempo real
-* Observabilidad completa del sistema
+* MySQL Exporter integrado
+* Dashboard MySQL funcional (14057)
+* Alertas implementadas
+* Testing local de backups documentado
+* Ejecución manual en producción documentada
 
 ---
 
@@ -231,18 +211,16 @@ docker-compose.prod.yml
 
 * ✔ CI/CD completo
 * ✔ Deploy automático
-* ✔ Persistencia desacoplada
 * ✔ Backups automáticos
-* ✔ Integración con S3
-* ✔ Observabilidad implementada
-* ✔ Métricas en tiempo real
+* ✔ Testing local
+* ✔ Observabilidad completa
 * ✔ Dashboards funcionales
+* ✔ Alertas configuradas
 
 ---
 
 ## 👤 Autor
 
-Gerardo Mastramico
+Gerardo Angel Mastramico
 DevOps Junior
-
-GitHub: <https://github.com/GerardMastra>
+Git Hub: <https://github.com/GerardMastra>
