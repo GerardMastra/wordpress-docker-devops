@@ -29,7 +29,7 @@ services:
     env_file:
        - ${ENV_FILE}
     volumes:
-       - wordpress_data:/var/www/html
+       - ${RUNTIME_DIR}/wordpress:/var/www/html
     environment:
       WP_DB_HOST: mysql:3306
       WP_DB_USER: ${MYSQL_USER}
