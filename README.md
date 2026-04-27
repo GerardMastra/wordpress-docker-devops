@@ -1,75 +1,159 @@
-# 🐳 WordPress DevOps Project — Docker, AWS, CI/CD & Observability
+# 🐳 WordPress DevOps Project — Terraform, AWS, CI/CD & Observability
 
-## 🚀 Versión v1.5.1 — Observabilidad completa + MySQL + Alertas
+## 🚀 Versión v2.0.0 — Infraestructura como código + Pipeline completo end-to-end
 
-Proyecto **DevOps Junior avanzado** que implementa una plataforma completa de despliegue, backup y monitoreo para una aplicación real de **WordPress**, ejecutándose en **AWS Lightsail**.
+Proyecto **DevOps avanzado** que implementa una plataforma completa de:
 
----
+- Provisionamiento de infraestructura (IaC)
+- Build y distribución de aplicación
+- Despliegue automatizado
+- Backup y restauración
+- Monitoreo y alertas
 
-## 🎯 Objetivo
-
-Construir un sistema completo donde:
-
-1. El código se versiona en GitHub
-2. Se construye y publica una imagen Docker
-3. Se despliega automáticamente en producción
-4. Se restauran datos desde S3
-5. Se generan backups automáticos
-6. Se monitorea el sistema en tiempo real
-7. Se detectan problemas mediante alertas
+Todo integrado en un pipeline CI/CD real.
 
 ---
 
-## 🧱 Arquitectura
+## 🎯 Objetivo de la versión v2.0.0
 
-### Componentes principales
+> Construir un sistema end-to-end donde:
 
-* WordPress (PHP-FPM)
-* Nginx
-* MySQL
-* Certbot (SSL)
-* Docker Compose
-* AWS Lightsail
-* Amazon S3
-* Contenedor de Backups (cron + scripts)
+1. La infraestructura se define como código (Terraform)
+2. Se valida automáticamente en CI
+3. Se provisiona en AWS (EC2, red, etc.)
+4. La app se construye como imagen Docker
+5. Se almacenan assets en S3
+6. Se despliega automáticamente vía SSH
+7. Se ejecuta en contenedores (Docker Compose)
+8. Se monitorea en tiempo real
+9. Se generan backups automáticos
 
 ---
 
-### 📊 Observabilidad
+## 🌐 Entorno demo
 
-* Prometheus → métricas
-* Node Exporter → sistema
-* MySQL Exporter → base de datos
-* Grafana → dashboards + alertas
+URL pública:  
+http://gerardo-devops-wp.duckdns.org
+
+---
+
+## 🛠 Stack tecnológico
+
+### ☁️ Cloud & IaC
+
+- AWS (EC2, S3, VPC)
+- Terraform
+
+### 🐳 Contenedores
+
+- Docker
+- Docker Compose
+
+### 🌐 Aplicación
+
+- WordPress (PHP-FPM 8.1)
+- Nginx
+- MySQL 5.7
+
+### ⚙️ Automatización
+
+- GitHub Actions
+- Makefile
+- SSH Deployment
+
+### 💾 Storage
+
+- Amazon S3 (assets + backups)
+
+### 📡 Networking
+
+- DuckDNS (DNS dinámico)
+
+### 🔐 Seguridad
+
+- SSH con key
+- Variables sensibles en GitHub Secrets
+
+---
+
+## 📊 Observabilidad
+
+- Prometheus → métricas
+- Node Exporter → sistema
+- MySQL Exporter → base de datos
+- Grafana → dashboards + alertas
 
 ---
 
 ## 🔄 CI/CD Pipeline
 
 ```bash
-.github/workflows/deploy.yml
+.github/workflows/deploy-pipeline.yml
 ```
+---
 
-### CI
+### 🧠 Terraform CI
 
 ```bash
-docker build -t user/wordpress-devops:latest -f php/Dockerfile .
-docker push user/wordpress-devops:latest
+terraform init
+terraform fmt -check
+terraform validate
+terraform plan
 ```
 
-### CD
+✔ Valida sintaxis
+✔ Detecta errores antes de aplicar
+✔ Evita romper infraestructura
+
+---
+
+### 🚀 Terraform CD (solo main)
 
 ```bash
-docker compose pull
-make restore-s3 ENV=prod
-docker compose up -d
+terraform apply -auto-approve
 ```
+
+✔ Provisiona infraestructura automáticamente
+✔ Exporta IP pública de EC2 dinámicamente
+
+---
+
+### 🐳 App CI
+
+```bash
+aws s3 cp s3://$S3_BUCKET/$S3_PATH ./php/wp-content.tar.gz
+
+docker build -t $DOCKERHUB_USERNAME/wordpress-devops:latest -f ./php/Dockerfile .
+docker push $DOCKERHUB_USERNAME/wordpress-devops:latest
+```
+
+✔ Descarga assets desde S3
+✔ Build de imagen Docker
+✔ Push a Docker Hub
+
+---
+
+### 🚀 App CD
+
+```bash
+git fetch origin
+git reset --hard origin/main
+
+docker pull $DOCKERHUB_USERNAME/wordpress-devops:latest
+
+make down ENV=prod
+make up-prod ENV=prod
+```
+
+✔ Deploy automático vía SSH
+✔ Uso de IP dinámica desde Terraform
+✔ Restart limpio de servicios
 
 ---
 
 ## 💾 Backups automáticos
 
-### 🧪 Testing en entorno local
+### 🧪 Testing local
 
 ```bash
 make backup-test
@@ -82,39 +166,25 @@ Dentro del contenedor:
 /scripts/backup-db.sh
 /scripts/backup-files.sh
 ```
-
 ---
 
-### 🚀 Ejecución en producción
+### 🚀 Producción
 
 ```bash
-docker compose \
-  --env-file .env.prod \
-  -f docker-compose.yml \
-  -f docker-compose.prod.yml \
-  up -d --build
+make up-prod ENV=prod
 ```
 
-Acceso al contenedor:
+Acceso:
 
 ```bash
 docker exec -it backup-service sh
 ```
-
-Ejecución manual:
-
-```bash
-/scripts/backup-db.sh
-/scripts/backup-files.sh
-```
-
 ---
-
 ### ⏱ Automatización
 
-* Contenedor dedicado
-* Uso de `cron`
-* Backups a Amazon S3
+- Contenedor dedicado
+- Cron jobs
+- Subida automática a S3
 
 ---
 
@@ -122,18 +192,18 @@ Ejecución manual:
 
 ### 📈 Dashboards
 
-* Node Exporter → **ID 1860**
-* MySQL → **ID 14057**
+- Node Exporter → ID 1860
+- MySQL → ID 14057
 
 ---
 
 ### 🔎 Queries de ejemplo
 
-```promql
+```bash
 node_memory_MemAvailable_bytes
 ```
 
-```promql
+```bash
 mysql_up
 ```
 
@@ -143,19 +213,19 @@ mysql_up
 
 ### CPU alta
 
-```promql
+```bash
 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[1m])) * 100)
 ```
 
 ### RAM baja
 
-```promql
+```bash
 (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100
 ```
 
 ### MySQL caído
 
-```promql
+```bash
 mysql_up
 ```
 
@@ -166,9 +236,7 @@ mysql_up
 ```bash
 .env.local
 .env.prod
-```
 
-```bash
 docker-compose.yml
 docker-compose.local.yml
 docker-compose.prod.yml
@@ -178,49 +246,50 @@ docker-compose.prod.yml
 
 ## 🧠 Lo que demuestra este proyecto
 
-* CI/CD real
-* Deploy automático
-* Manejo de entornos
-* Persistencia desacoplada
-* Backups automatizados + testing local
-* Observabilidad completa
-* Alertas proactivas
-* Debugging real en producción
+- Infraestructura como código (Terraform)
+- Pipeline CI/CD real multi-stage
+- Deploy automático con dependencia entre jobs
+- Integración AWS (EC2 + S3)
+- Build y distribución de contenedores
+- Manejo de secretos (GitHub Secrets)
+- Persistencia desacoplada
+- Backups automatizados
+- Observabilidad completa
+- Alertas proactivas
+- Debugging real en producción
 
 ---
 
-## 📸 Screenshots
+## 🔥 Cambios clave en v2.0.0
 
-👉 Grafana (Node + MySQL)
-👉 Prometheus Targets (UP)
-👉 Alertas
-
----
-
-## 🔥 Cambios clave en v1.5.1
-
-* MySQL Exporter integrado
-* Dashboard MySQL funcional (14057)
-* Alertas implementadas
-* Testing local de backups documentado
-* Ejecución manual en producción documentada
+- Integración completa de Terraform en CI/CD
+- Pipeline multi-stage (infra + app)
+- Deploy automático dependiente de infraestructura
+- Uso de IP dinámica exportada desde Terraform
+- Integración con S3 en pipeline (assets)
+- Separación clara: infra vs aplicación
+- Mejora del flujo end-to-end real
 
 ---
 
 ## 📌 Estado del proyecto
 
-* ✔ CI/CD completo
-* ✔ Deploy automático
-* ✔ Backups automáticos
-* ✔ Testing local
-* ✔ Observabilidad completa
-* ✔ Dashboards funcionales
-* ✔ Alertas configuradas
+✔ Infraestructura como código
+✔ Pipeline CI/CD completo
+✔ Provisionamiento automático
+✔ Deploy automático
+✔ Backups automáticos
+✔ Observabilidad completa
+✔ Alertas configuradas
+
+**Tag sugerido**: v1.3.0
 
 ---
 
 ## 👤 Autor
 
-Gerardo Angel Mastramico
+**Gerardo Angel Mastramico**
 DevOps Junior
-Git Hub: <https://github.com/GerardMastra>
+
+GitHub:
+<https://github.com/GerardMastra>
