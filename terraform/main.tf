@@ -19,7 +19,7 @@ resource "aws_subnet" "public" {
   cidr_block              = var.subnet_cidr
   map_public_ip_on_launch = true
 
-  availability_zone = var.availability_zone  # ✅ ACA VA
+  availability_zone = var.availability_zone # ✅ ACA VA
 
   tags = {
     Name = "public-subnet"
@@ -114,7 +114,7 @@ resource "aws_security_group" "web_sg" {
 ####################################
 
 resource "aws_instance" "wordpress" {
-  ami           = "ami-0ec10929233384c7f" 
+  ami           = "ami-0ec10929233384c7f"
   instance_type = var.instance_type
   subnet_id     = aws_subnet.public.id
 
