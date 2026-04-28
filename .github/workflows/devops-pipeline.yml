@@ -99,13 +99,26 @@ jobs:
 
       - name: Wait for EC2 SSH
         run: |
-          echo "Esperando a que EC2 esté lista..."
-          for i in {1..30}; do
-            nc -zv ${{ needs.terraform-cd.outputs.ec2_ip }} 22 && echo "SSH listo" && exit 0
-            echo "Intento $i..."
+          IP="${{ needs.terraform-cd.outputs.ec2_ip }}"
+          if [ -z "$IP" ]; then
+            echo "Error: La IP de la EC2 está vacía."
+            exit 1
+          fi
+
+          echo "Esperando a que EC2 ($IP) esté lista y el bootstrap finalice..."
+
+          # Aumentamos a 60 intentos (10 minutos total) si el bootstrap es pesado
+          for i in {1..60}; do
+            # Usamos una validación más robusta que nc
+            if nc -w 5 -z "$IP" 22; then
+              echo "SSH detectado en puerto 22."
+              # Opcional: intentar un comando real por SSH para confirmar que el SO respondió
+              exit 0
+            fi
+            echo "Intento $i/60: SSH aún no responde..."
             sleep 10
           done
-          echo "Timeout esperando SSH"
+          echo "Timeout: La instancia no respondió tras 10 minutos."
           exit 1
 
 # =========================
