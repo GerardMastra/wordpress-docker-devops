@@ -119,7 +119,7 @@ resource "aws_instance" "wordpress" {
   subnet_id     = aws_subnet.public.id
 
   # ✅ Esto soluciona tu duda anterior: Ejecución automática del bootstrap
-  user_data = base64gzip(file("${path.module}/../scripts/bootstrap-secure.sh"))
+  user_data_base64 = base64gzip(file("${path.module}/../scripts/bootstrap-secure.sh"))
 
   # ✅ Configuración del almacenamiento de 30GB
   root_block_device {
