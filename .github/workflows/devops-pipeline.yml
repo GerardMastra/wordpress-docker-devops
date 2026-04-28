@@ -112,7 +112,7 @@ jobs:
           MY_S3_BUCKET: ${{ secrets.S3_BUCKET }}
           MY_S3_PATH: ${{ secrets.S3_PATH_WP }}
         run: |
-          aws s3 cp s3://$S3_BUCKET/$S3_PATH ./php/wp-content.tar.gz
+          aws s3 cp s3://$MY_S3_BUCKET/$MY_S3_PATH ./php/wp-content.tar.gz
           cd php && tar -xzf wp-content.tar.gz && rm wp-content.tar.gz
 
       - name: Login Docker Hub
