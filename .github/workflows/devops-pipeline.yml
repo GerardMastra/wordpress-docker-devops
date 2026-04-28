@@ -181,14 +181,26 @@ jobs:
 
           script: |
             set -e
+            # Definir variables para evitar repetir rutas
+            REPO_DIR="~/projecto-devops/repo/wordpress-docker-devops"
+            REPO_URL="https://github.com/${{ github.repository }}.git"
 
-            cd ~/projecto-devops/repo/wordpress-docker-devops
+            # Crear la estructura de directorios si no existe
+            mkdir -p ~/projecto-devops/repo
 
-            echo "Actualizando repo..."
-            git fetch origin
-            git reset --hard origin/main
+            # Clonar si no existe, o actualizar si ya existe
+            if [ ! -d "$REPO_DIR" ]; then
+              echo "Clonando repositorio por primera vez..."
+              git clone "$REPO_URL" "$REPO_DIR"
+              cd "$REPO_DIR"
+            else
+              echo "El directorio existe. Actualizando..."
+              cd "$REPO_DIR"
+              git fetch origin
+              git reset --hard origin/main
+            fi
 
-            echo "Pull imagen..."
+            echo "Pull imagen de Docker Hub..."
             sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/wordpress-devops:latest
 
             echo "Restart servicios..."
