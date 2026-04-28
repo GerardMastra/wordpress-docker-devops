@@ -62,6 +62,9 @@ jobs:
     needs: terraform-ci
     if: github.ref == 'refs/heads/main'
 
+    outputs:
+      ec2_ip: ${{ steps.tf_output.outputs.ec2_ip }}
+
     defaults:
       run:
         working-directory: terraform
@@ -88,7 +91,18 @@ jobs:
       - name: Export EC2 IP
         id: tf_output
         run: |
-          echo "EC2_IP=$(terraform output -raw instance_public_ip)" >> $GITHUB_ENV
+          echo "ec2_ip=$(terraform output -raw instance_public_ip)" >> $GITHUB_OUTPUT
+
+      - name: Wait for EC2 SSH
+        run: |
+          echo "Esperando a que EC2 esté lista..."
+          for i in {1..30}; do
+            nc -zv ${{ needs.terraform-cd.outputs.ec2_ip }} 2222 && echo "SSH listo" && exit 0
+            echo "Intento $i..."
+            sleep 10
+          done
+          echo "Timeout esperando SSH"
+          exit 1
 
 # =========================
 # 🐳 APP CI (tu parte actual)
@@ -112,7 +126,10 @@ jobs:
           MY_S3_BUCKET: ${{ secrets.S3_BUCKET }}
           MY_S3_PATH: ${{ secrets.S3_PATH_WP }}
         run: |
-          # aws s3 cp s3://$MY_S3_BUCKET/$MY_S3_PATH ./php/wp-content.tar.gz
+          # if ! aws s3 cp s3://$MY_S3_BUCKET/$MY_S3_PATH ./php/wp-content.tar.gz; then
+          #   echo "Error descargando S3"
+          #   exit 1
+          # fi
           aws s3 cp s3://gerardo-devops-wp/bootstrap/wordpress/wp-content.tar.gz ./php/wp-content.tar.gz
           cd php && tar -xzf wp-content.tar.gz && rm wp-content.tar.gz
 
@@ -139,7 +156,7 @@ jobs:
       - name: Deploy via SSH usando IP dinámica
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ env.EC2_IP }}
+          host: ${{ needs.terraform-cd.outputs.ec2_ip }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 2222
