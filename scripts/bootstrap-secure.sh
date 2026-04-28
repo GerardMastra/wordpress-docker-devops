@@ -93,6 +93,22 @@ fi
 usermod -aG docker ubuntu
 
 # =========================
+# Automatizar DNS
+# =========================
+echo "🌐 Configurando DuckDNS..."
+
+DUCKDNS_DOMAIN="gerardo-devops-wp"
+DUCKDNS_TOKEN="TU_TOKEN"
+
+# Actualización inicial
+PUBLIC_IP=$(curl -s http://checkip.amazonaws.com)
+
+curl "https://www.duckdns.org/update?domains=$DUCKDNS_DOMAIN&token=$DUCKDNS_TOKEN&ip=$PUBLIC_IP"
+
+# Cron para mantener IP actualizada
+echo "*/5 * * * * curl -s 'https://www.duckdns.org/update?domains=$DUCKDNS_DOMAIN&token=$DUCKDNS_TOKEN&ip=' > /dev/null" | crontab -
+
+# =========================
 # Firewall (UFW)
 # =========================
 echo "🔥 Configurando firewall..."
