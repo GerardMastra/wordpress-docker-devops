@@ -93,11 +93,15 @@ jobs:
         run: |
           echo "ec2_ip=$(terraform output -raw instance_public_ip)" >> $GITHUB_OUTPUT
 
+      - name: Debug EC2 IP
+        run: |
+          echo "IP = [${{ needs.terraform-cd.outputs.ec2_ip }}]"
+
       - name: Wait for EC2 SSH
         run: |
           echo "Esperando a que EC2 esté lista..."
           for i in {1..30}; do
-            nc -zv ${{ needs.terraform-cd.outputs.ec2_ip }} 2222 && echo "SSH listo" && exit 0
+            nc -zv ${{ needs.terraform-cd.outputs.ec2_ip }} 22 && echo "SSH listo" && exit 0
             echo "Intento $i..."
             sleep 10
           done
@@ -159,7 +163,7 @@ jobs:
           host: ${{ needs.terraform-cd.outputs.ec2_ip }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
-          port: 2222
+          port: 22
 
           script: |
             set -e
