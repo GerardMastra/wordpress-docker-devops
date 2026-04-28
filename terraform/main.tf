@@ -19,7 +19,7 @@ resource "aws_subnet" "public" {
   cidr_block              = var.subnet_cidr
   map_public_ip_on_launch = true
 
-  availability_zone = var.availability_zone # ✅ ACA VA
+  availability_zone = var.availability_zone
 
   tags = {
     Name = "public-subnet"
@@ -76,13 +76,13 @@ resource "aws_security_group" "web_sg" {
     cidr_blocks = ["0.0.0.0/0"] # después podés restringirlo
   }
 
-#  ingress {
-#    description = "SSH"
-#    from_port   = 2222
-#    to_port     = 2222
-#    protocol    = "tcp"
-#    cidr_blocks = ["0.0.0.0/0"] # después podés restringirlo
-#  }
+  #  ingress {
+  #    description = "SSH"
+  #    from_port   = 2222
+  #    to_port     = 2222
+  #    protocol    = "tcp"
+  #    cidr_blocks = ["0.0.0.0/0"] # después podés restringirlo
+  #  }
 
 
   ingress {
