@@ -16,6 +16,9 @@ jobs:
   terraform-ci:
     runs-on: ubuntu-latest
 
+    env:
+      TF_VAR_key_name: ${{ secrets.KEY_NAME }}
+
     defaults:
       run:
         working-directory: terraform
@@ -52,6 +55,10 @@ jobs:
 # =========================
   terraform-cd:
     runs-on: ubuntu-latest
+
+    env:
+      TF_VAR_key_name: ${{ secrets.KEY_NAME }}
+
     needs: terraform-ci
     if: github.ref == 'refs/heads/main'
 
