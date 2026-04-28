@@ -76,13 +76,13 @@ resource "aws_security_group" "web_sg" {
     cidr_blocks = ["0.0.0.0/0"] # después podés restringirlo
   }
 
-  ingress {
-    description = "SSH"
-    from_port   = 2222
-    to_port     = 2222
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # después podés restringirlo
-  }
+#  ingress {
+#    description = "SSH"
+#    from_port   = 2222
+#    to_port     = 2222
+#    protocol    = "tcp"
+#    cidr_blocks = ["0.0.0.0/0"] # después podés restringirlo
+#  }
 
 
   ingress {
