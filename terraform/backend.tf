@@ -1,6 +1,6 @@
 terraform {
   backend "s3" {
-    bucket         = "TU_BUCKET_TF_STATE"
+    bucket         = "gerardo-devops-wp"
     key            = "wordpress/terraform.tfstate"
     region         = "us-east-1"
     dynamodb_table = "terraform-locks"
