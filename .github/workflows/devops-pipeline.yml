@@ -95,11 +95,12 @@ jobs:
 
       - name: Debug EC2 IP
         run: |
-          echo "IP = [${{ needs.terraform-cd.outputs.ec2_ip }}]"
+          # Cambiamos needs por steps
+          echo "IP = [${{ steps.tf_output.outputs.ec2_ip }}]"
 
       - name: Wait for EC2 SSH
         run: |
-          IP="${{ needs.terraform-cd.outputs.ec2_ip }}"
+          IP="${{ steps.tf_output.outputs.ec2_ip }}"
           if [ -z "$IP" ]; then
             echo "Error: La IP de la EC2 está vacía."
             exit 1
