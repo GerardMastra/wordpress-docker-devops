@@ -98,28 +98,39 @@ jobs:
           # Cambiamos needs por steps
           echo "IP = [${{ steps.tf_output.outputs.ec2_ip }}]"
 
-      - name: Wait for EC2 SSH
+      - name: Wait Bootstrap to finish
         run: |
           IP="${{ steps.tf_output.outputs.ec2_ip }}"
+          echo "Esperando a que el bootstrap en $IP finalice..."
+
           if [ -z "$IP" ]; then
             echo "Error: La IP de la EC2 está vacía."
             exit 1
           fi
 
-          echo "Esperando a que EC2 ($IP) esté lista y el bootstrap finalice..."
+          # Guardamos la llave SSH en un archivo temporal para el chequeo
+          echo "${{ secrets.EC2_SSH_KEY }}" > private_key.pem
+          chmod 600 private_key.pem
 
-          # Aumentamos a 60 intentos (10 minutos total) si el bootstrap es pesado
+          # Reintentar por 10 minutos (60 veces * 10 seg)
           for i in {1..60}; do
-            # Usamos una validación más robusta que nc
-            if nc -w 5 -z "$IP" 22; then
-              echo "SSH detectado en puerto 22."
-              # Opcional: intentar un comando real por SSH para confirmar que el SO respondió
-              exit 0
+            # 1. Verificar si el puerto 22 está abierto
+            if nc -z -w 5 "$IP" 22; then
+              # 2. Verificar si el archivo de señal existe en la EC2
+              if ssh -i private_key.pem -o StrictHostKeyChecking=no ubuntu@$IP "test -f /var/log/bootstrap_finished"; then
+                echo "✅ Bootstrap finalizado y Docker listo."
+                rm private_key.pem
+                exit 0
+              fi
+              echo "Intento $i: SSH activo pero el bootstrap sigue trabajando..."
+            else
+              echo "Intento $i: SSH aún no responde..."
             fi
-            echo "Intento $i/60: SSH aún no responde..."
             sleep 10
           done
-          echo "Timeout: La instancia no respondió tras 10 minutos."
+
+          echo "❌ Timeout: El bootstrap no terminó en 10 minutos."
+          rm private_key.pem
           exit 1
 
 # =========================
@@ -180,6 +191,15 @@ jobs:
           port: 22
           script: |
             set -e
+           # Espera de cortesía por si el grupo docker no se refrescó
+            sleep 5
+            
+            # Verificar si Docker está realmente instalado
+            if ! command -v docker &> /dev/null; then
+              echo "🚨 Docker no fue detectado. Forzando instalación rápida..."
+              sudo apt-get update && sudo apt-get install -y docker.io
+            fi
+
             # 1. Definir ruta absoluta (evitamos ~ en rutas de configuración)
             REPO_DIR="/home/ubuntu/projecto-devops/repo/wordpress-docker-devops"
             REPO_URL="https://github.com/${{ github.repository }}.git"
@@ -226,5 +246,5 @@ jobs:
 
             echo "Restart servicios..."
             # Forzamos a que use el archivo recién creado
-            sudo make down ENV=prod
+            sudo make down ENV=prod || true
             sudo make up-prod ENV=prod
