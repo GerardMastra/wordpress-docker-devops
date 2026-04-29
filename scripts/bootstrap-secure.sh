@@ -122,4 +122,7 @@ ufw allow 443/tcp
 
 ufw --force enable
 
+# Crear señal de finalización
+touch /var/log/bootstrap_finished
+
 echo "🎉 Bootstrap completado correctamente."
