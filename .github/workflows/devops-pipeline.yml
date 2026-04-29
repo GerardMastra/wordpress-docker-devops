@@ -191,7 +191,7 @@ jobs:
           port: 22
           script: |
             set -e
-           # Espera de cortesía por si el grupo docker no se refrescó
+            # Espera de cortesía por si el grupo docker no se refrescó
             sleep 5
 
             # Verificar si Docker está realmente instalado
