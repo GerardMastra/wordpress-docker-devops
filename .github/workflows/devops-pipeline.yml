@@ -165,7 +165,7 @@ jobs:
 # =========================
 # 🚀 APP CD
 # =========================
-  app-cd:
+app-cd:
     runs-on: ubuntu-latest
     needs: [terraform-cd, app-ci]
     if: github.ref == 'refs/heads/main'
@@ -178,31 +178,53 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
-
           script: |
             set -e
-            # Definir variables para evitar repetir rutas
-            REPO_DIR="~/projecto-devops/repo/wordpress-docker-devops"
+            # 1. Definir ruta absoluta (evitamos ~ en rutas de configuración)
+            REPO_DIR="/home/ubuntu/projecto-devops/repo/wordpress-docker-devops"
             REPO_URL="https://github.com/${{ github.repository }}.git"
 
-            # Crear la estructura de directorios si no existe
-            mkdir -p ~/projecto-devops/repo
+            mkdir -p /home/ubuntu/projecto-devops/repo
 
-            # Clonar si no existe, o actualizar si ya existe
+            # 2. Clonar o actualizar
             if [ ! -d "$REPO_DIR" ]; then
-              echo "Clonando repositorio por primera vez..."
               git clone "$REPO_URL" "$REPO_DIR"
-              cd "$REPO_DIR"
-            else
-              echo "El directorio existe. Actualizando..."
-              cd "$REPO_DIR"
-              git fetch origin
-              git reset --hard origin/main
             fi
+            
+            cd "$REPO_DIR"
+            git fetch origin
+            git reset --hard origin/main
 
+            # 3. Crear el archivo .env.prod dinámicamente
+            # Usamos las variables que vienen de Secrets de GitHub
+            echo "Generando archivo .env.prod..."
+            cat <<EOF > .env.prod
+            ENV_FILE=.env.prod
+            RUNTIME_DIR=/opt/wordpress-runtime
+            MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
+            MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}
+            MYSQL_USER=${{ secrets.MYSQL_USER }}
+            MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}
+            SSL_EMAIL=${{ secrets.SSL_EMAIL }}
+            DOMAIN_NAME=${{ secrets.DOMAIN_NAME }}
+            WP_TABLE_PREFIX=wp_
+            WP_DEBUG=false
+            WP_HOME=https://${{ secrets.DOMAIN_NAME }}
+            WP_SITEURL=https://${{ secrets.DOMAIN_NAME }}
+            S3_BUCKET=${{ secrets.S3_BUCKET }}
+            S3_PATH_WP=${{ secrets.S3_PATH_WP }}
+            S3_PATH_DB=${{ secrets.S3_PATH_DB }}
+            AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            AWS_REGION=${{ secrets.AWS_REGION }}
+            DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
+            EOF
+
+            # 4. Pull y Reinicio
             echo "Pull imagen de Docker Hub..."
             sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/wordpress-devops:latest
 
             echo "Restart servicios..."
+            # Forzamos a que use el archivo recién creado
             sudo make down ENV=prod
             sudo make up-prod ENV=prod
