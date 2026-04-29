@@ -93,20 +93,37 @@ fi
 usermod -aG docker ubuntu
 
 # =========================
-# Automatizar DNS
+# Automatizar DNS con Verificación
 # =========================
 echo "🌐 Configurando DuckDNS..."
 
 DUCKDNS_DOMAIN="gerardo-devops-wp"
-DUCKDNS_TOKEN="TU_TOKEN"
+DUCKDNS_TOKEN="TU_TOKEN" # Asegúrate de usar tu token real o variable
 
-# Actualización inicial
 PUBLIC_IP=$(curl -s http://checkip.amazonaws.com)
 
-curl "https://www.duckdns.org/update?domains=$DUCKDNS_DOMAIN&token=$DUCKDNS_TOKEN&ip=$PUBLIC_IP"
+# Intentar actualización hasta que sea exitosa
+for i in {1..5}; do
+    RESPONSE=$(curl -s "https://www.duckdns.org/update?domains=$DUCKDNS_DOMAIN&token=$DUCKDNS_TOKEN&ip=$PUBLIC_IP")
+    if [ "$RESPONSE" = "OK" ]; then
+        echo "✅ API de DuckDNS respondió OK"
+        break
+    fi
+    echo "⚠️ Intento $i: Fallo en API DuckDNS, reintentando..."
+    sleep 5
+done
 
-# Cron para mantener IP actualizada
-echo "*/5 * * * * curl -s 'https://www.duckdns.org/update?domains=$DUCKDNS_DOMAIN&token=$DUCKDNS_TOKEN&ip=' > /dev/null" | crontab -
+# VERIFICACIÓN DE PROPAGACIÓN
+echo "🔍 Verificando propagación DNS local..."
+for i in {1..12}; do
+    RESOLVED_IP=$(dig +short ${DUCKDNS_DOMAIN}.duckdns.org @8.8.8.8 | tail -n1)
+    if [ "$RESOLVED_IP" = "$PUBLIC_IP" ]; then
+        echo "✅ DNS propagado: $RESOLVED_IP"
+        break
+    fi
+    echo "⏳ Esperando propagación (Actual: $RESOLVED_IP | Esperada: $PUBLIC_IP)..."
+    sleep 10
+done
 
 # =========================
 # Firewall (UFW)
