@@ -2,7 +2,7 @@ name: DevOps Pipeline (Terraform + App)
 
 on:
   push:
-    branches: [ main, dev ]
+    branches: [ main, dev, feature ]
   pull_request:
 
 env:
@@ -193,7 +193,7 @@ jobs:
             set -e
            # Espera de cortesía por si el grupo docker no se refrescó
             sleep 5
-            
+
             # Verificar si Docker está realmente instalado
             if ! command -v docker &> /dev/null; then
               echo "🚨 Docker no fue detectado. Forzando instalación rápida..."
@@ -210,7 +210,7 @@ jobs:
             if [ ! -d "$REPO_DIR" ]; then
               git clone "$REPO_URL" "$REPO_DIR"
             fi
-            
+
             cd "$REPO_DIR"
             git fetch origin
             git reset --hard origin/main
