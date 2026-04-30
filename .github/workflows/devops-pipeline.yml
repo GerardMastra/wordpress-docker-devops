@@ -91,10 +91,13 @@ jobs:
       - name: Export EC2 IP
         id: tf_output
         run: |
-          # Usamos -json y jq para extraer el valor exacto sin ruidos de warnings
-          # O una forma más simple con grep/sed si no quieres instalar jq
-          IP=$(terraform output -raw instance_public_ip 2>/dev/null | grep -E '^[0-9.]+$' || terraform output -raw instance_public_ip)
-          echo "ec2_ip=$IP" >> $GITHUB_OUTPUT
+          # 1. Obtenemos el output, enviamos errores al limbo (2>/dev/null) 
+          # 2. Usamos -no-color para evitar códigos de terminal
+          # 3. Limpiamos cualquier carácter de recuadro '│' o espacios
+          RAW_IP=$(terraform output -no-color -raw instance_public_ip 2>/dev/null | tr -d '[:space:]' | sed 's/│//g')
+          
+          # Validamos que lo que quedó parece una IP (opcional pero seguro)
+          echo "ec2_ip=${RAW_IP}" >> $GITHUB_OUTPUT
 
       - name: Debug EC2 IP
         run: |
