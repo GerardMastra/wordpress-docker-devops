@@ -169,11 +169,11 @@ jobs:
           MY_S3_BUCKET: ${{ secrets.S3_BUCKET }}
           MY_S3_PATH: ${{ secrets.S3_PATH_WP }}
         run: |
-          # if ! aws s3 cp s3://$MY_S3_BUCKET/$MY_S3_PATH ./php/wp-content.tar.gz; then
-          #   echo "Error descargando S3"
-          #   exit 1
-          # fi
-          aws s3 cp s3://gerardo-devops-wp/bootstrap/wordpress/wp-content.tar.gz ./php/wp-content.tar.gz
+          if ! aws s3 cp s3://$MY_S3_BUCKET/$MY_S3_PATH ./php/wp-content.tar.gz; then
+            echo "Error descargando S3"
+            exit 1
+          fi
+          # aws s3 cp s3://gerardo-devops-wp/bootstrap/wordpress/wp-content.tar.gz ./php/wp-content.tar.gz
           cd php && tar -xzf wp-content.tar.gz && rm wp-content.tar.gz
 
       - name: Login Docker Hub
