@@ -272,26 +272,26 @@ jobs:
 
             # Usamos trim para eliminar posibles saltos de línea o espacios en los secrets
             cat <<EOF > .env.prod
-ENV_FILE=.env.prod
-RUNTIME_DIR=/opt/wordpress-runtime
-MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
-MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}
-MYSQL_USER=${{ secrets.MYSQL_USER }}
-MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}
-SSL_EMAIL=${{ secrets.SSL_EMAIL }}
-DOMAIN_NAME=${{ secrets.DOMAIN_NAME }}
-WP_TABLE_PREFIX=wp_
-WP_DEBUG=false
-WP_HOME=https://${{ secrets.DOMAIN_NAME }}
-WP_SITEURL=https://${{ secrets.DOMAIN_NAME }}
-S3_BUCKET=$(echo "${{ secrets.S3_BUCKET }}" | tr -d '[:space:]')
-S3_PATH_WP=$(echo "${{ secrets.S3_PATH_WP }}" | tr -d '[:space:]')
-S3_PATH_DB=$(echo "${{ secrets.S3_PATH_DB }}" | tr -d '[:space:]')
-AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
-AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
-AWS_REGION=${{ secrets.AWS_REGION }}
-DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
-EOF
+            ENV_FILE=.env.prod
+            RUNTIME_DIR=/opt/wordpress-runtime
+            MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
+            MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}
+            MYSQL_USER=${{ secrets.MYSQL_USER }}
+            MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}
+            SSL_EMAIL=${{ secrets.SSL_EMAIL }}
+            DOMAIN_NAME=${{ secrets.DOMAIN_NAME }}
+            WP_TABLE_PREFIX=wp_
+            WP_DEBUG=false
+            WP_HOME=https://${{ secrets.DOMAIN_NAME }}
+            WP_SITEURL=https://${{ secrets.DOMAIN_NAME }}
+            S3_BUCKET=$(echo "${{ secrets.S3_BUCKET }}" | tr -d '[:space:]')
+            S3_PATH_WP=$(echo "${{ secrets.S3_PATH_WP }}" | tr -d '[:space:]')
+            S3_PATH_DB=$(echo "${{ secrets.S3_PATH_DB }}" | tr -d '[:space:]')
+            AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            AWS_REGION=${{ secrets.AWS_REGION }}
+            DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
+            EOF
 
             # VALIDACIÓN (Solo para debug, puedes quitarlo después)
             echo "🔍 Verificando rutas generadas:"
