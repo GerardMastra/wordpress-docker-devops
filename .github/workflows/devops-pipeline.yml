@@ -91,13 +91,21 @@ jobs:
       - name: Export EC2 IP
         id: tf_output
         run: |
-          # 1. Obtenemos el output, enviamos errores al limbo (2>/dev/null) 
-          # 2. Usamos -no-color para evitar códigos de terminal
-          # 3. Limpiamos cualquier carácter de recuadro '│' o espacios
-          RAW_IP=$(terraform output -no-color -raw instance_public_ip 2>/dev/null | tr -d '[:space:]' | sed 's/│//g')
+          # 1. Capturamos la salida cruda
+          RAW_OUTPUT=$(terraform output -no-color -raw instance_public_ip 2>/dev/null)
           
-          # Validamos que lo que quedó parece una IP (opcional pero seguro)
-          echo "ec2_ip=${RAW_IP}" >> $GITHUB_OUTPUT
+          # 2. Usamos grep con una expresión regular para extraer SOLO la IP (bloque de números y puntos)
+          # Esto descartará cualquier palabra como "Warning" o caracteres como "│"
+          CLEAN_IP=$(echo "$RAW_OUTPUT" | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -n 1)
+
+          if [ -z "$CLEAN_IP" ]; then
+            echo "❌ Error: No se pudo extraer una IP válida de la salida de Terraform."
+            echo "Salida recibida: $RAW_OUTPUT"
+            exit 1
+          fi
+
+          echo "IP filtrada con éxito: $CLEAN_IP"
+          echo "ec2_ip=$CLEAN_IP" >> $GITHUB_OUTPUT
 
       - name: Debug EC2 IP
         run: |
