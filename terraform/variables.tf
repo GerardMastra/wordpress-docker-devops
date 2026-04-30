@@ -20,5 +20,5 @@ variable "instance_type" {
 }
 
 variable "key_name" {
-  description = "Nombre de tu "key_name" en AWS"
+  description = "Nombre de tu key_name en AWS"
 }
