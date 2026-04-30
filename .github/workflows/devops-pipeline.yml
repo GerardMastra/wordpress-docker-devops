@@ -190,147 +190,132 @@ jobs:
 # =========================
 # 🚀 APP CD
 # =========================
-  app-cd:
-    runs-on: ubuntu-latest
-    needs: [terraform-cd, app-ci]
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/feature'
+app-cd:
+  runs-on: ubuntu-latest
+  needs: [terraform-cd, app-ci]
+  if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/feature'
 
-    steps:
-      - name: Deploy via SSH usando IP dinámica
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ needs.terraform-cd.outputs.ec2_ip }}
-          username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}
-          port: 22
-          script: |
-            set -e
+  steps:
+    - name: Deploy via SSH usando IP dinámica
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ needs.terraform-cd.outputs.ec2_ip }}
+        username: ubuntu
+        key: ${{ secrets.EC2_SSH_KEY }}
+        port: 22
+        script: |
+          set -e
 
-            # Asegurar que dig esté disponible para el diagnóstico
-            if ! command -v dig &> /dev/null; then
-              echo "🔧 Instalando dnsutils para diagnóstico de red..."
-              sudo apt-get update && sudo apt-get install -y dnsutils
-            fi
+          echo "=============================="
+          echo "🚀 INICIO DEPLOY"
+          echo "=============================="
 
-            # --- DIAGNÓSTICO DE RED ---
-            PUBLIC_IP=$(curl -s http://checkip.amazonaws.com)
-            FULL_DOMAIN="gerardo-devops-wp.duckdns.org" # Para el dig
-            SUB_DOMAIN="gerardo-devops-wp"             # Solo el nombre para la API
-            
-            DNS_RESOLVED=$(dig +short $FULL_DOMAIN | tail -n1)
+          # =========================
+          # 🧠 DIAGNÓSTICO BÁSICO
+          # =========================
+          PUBLIC_IP=$(curl -s http://checkip.amazonaws.com)
+          echo "🌐 IP actual: $PUBLIC_IP"
 
-            echo "🔍 DIAGNÓSTICO:"
-            echo "Mi IP Pública real: $PUBLIC_IP"
-            echo "IP que resuelve DuckDNS: $DNS_RESOLVED"
+          # =========================
+          # 🔧 ASEGURAR DEPENDENCIAS
+          # =========================
+          if ! command -v docker &> /dev/null; then
+            echo "🔧 Instalando Docker..."
+            sudo apt-get update && sudo apt-get install -y docker.io
+          fi
 
-            if [ "$PUBLIC_IP" != "$DNS_RESOLVED" ]; then
-              echo "❌ ERROR: DuckDNS no apunta a esta instancia."
-              echo "Intentando actualizar manualmente..."
-              
-              # IMPORTANTE: El parámetro 'domains' NO lleva el .duckdns.org
-              UPDATE_RES=$(curl -s "https://www.duckdns.org/update?domains=$SUB_DOMAIN&token=${{ secrets.DUCKDNS_TOKEN }}&ip=$PUBLIC_IP")
-              
-              echo "Respuesta de DuckDNS: $UPDATE_RES"
-              
-              if [ "$UPDATE_RES" != "OK" ]; then
-                echo "🚨 Error crítico: DuckDNS rechazó la actualización (Token o Dominio inválidos)."
-                # No salimos con error aquí para intentar ver si el DNS se propaga igual, 
-                # pero ya sabemos que probablemente falle Certbot.
-              fi
-              
-              echo "Esperando 45 segundos para propagación..."
-              sleep 45
-            else
-              echo "✅ DNS sincronizado correctamente."
-            fi
+          if ! command -v aws &> /dev/null; then
+            echo "🔧 Instalando AWS CLI..."
+            sudo apt-get update && sudo apt-get install -y awscli
+          fi
 
-            # Espera de cortesía por si el grupo docker no se refrescó
-            sleep 5
+          # =========================
+          # 📁 CLONAR / ACTUALIZAR REPO
+          # =========================
+          REPO_DIR="/home/ubuntu/projecto-devops/repo/wordpress-docker-devops"
+          REPO_URL="https://github.com/${{ github.repository }}.git"
 
-            # Verificar si Docker está realmente instalado
-            if ! command -v docker &> /dev/null; then
-              echo "🚨 Docker no fue detectado. Forzando instalación rápida..."
-              sudo apt-get update && sudo apt-get install -y docker.io
-            fi
+          mkdir -p /home/ubuntu/projecto-devops/repo
 
-            # 1. Definir ruta absoluta (evitamos ~ en rutas de configuración)
-            REPO_DIR="/home/ubuntu/projecto-devops/repo/wordpress-docker-devops"
-            REPO_URL="https://github.com/${{ github.repository }}.git"
+          if [ ! -d "$REPO_DIR" ]; then
+            git clone "$REPO_URL" "$REPO_DIR"
+          fi
 
-            mkdir -p /home/ubuntu/projecto-devops/repo
+          cd "$REPO_DIR"
+          git fetch origin
+          git reset --hard origin/main
 
-            # 2. Clonar o actualizar
-            if [ ! -d "$REPO_DIR" ]; then
-              git clone "$REPO_URL" "$REPO_DIR"
-            fi
+          # =========================
+          # 🔐 LIMPIEZA DE VARIABLES (FIX REAL)
+          # =========================
+          clean_var() {
+            echo "$1" | tr -d '\r' | sed 's|^/||'
+          }
 
-            cd "$REPO_DIR"
-            git fetch origin
-            git reset --hard origin/main
+          S3_BUCKET=$(clean_var "${{ secrets.S3_BUCKET }}")
+          S3_WP=$(clean_var "${{ secrets.S3_PATH_WP }}")
+          S3_DB=$(clean_var "${{ secrets.S3_PATH_DB }}")
 
-            # 3. Generar .env.prod con limpieza profunda
-            echo "Generando archivo .env.prod..."
-            
-            # Función interna para limpiar variables
-            clean_var() {
-              echo "$1" | tr -d '\r' | sed 's|^/||'
-            }
+          # =========================
+          # 🔍 DEBUG REAL (NO EL DE SECRETS)
+          # =========================
+          echo "=============================="
+          echo "🔍 DEBUG VARIABLES REALES"
+          echo "Bucket: [$S3_BUCKET]"
+          echo "Path WP: [$S3_WP]"
+          echo "Path DB: [$S3_DB]"
+          echo "Comando real:"
+          echo "aws s3 cp s3://$S3_BUCKET/$S3_WP /tmp/wp-content.tar.gz"
+          echo "=============================="
 
-            S3_BUCKET=$(clean_var "${{ secrets.S3_BUCKET }}")
-            S3_WP=$(clean_var "${{ secrets.S3_PATH_WP }}")
-            S3_DB=$(clean_var "${{ secrets.S3_PATH_DB }}")
+          # =========================
+          # 🧪 TEST S3 (CLAVE)
+          # =========================
+          echo "🧪 Verificando existencia en S3..."
+          aws s3 ls s3://$S3_BUCKET/$S3_WP || {
+            echo "❌ ERROR: El archivo NO existe en S3"
+            echo "📂 Listando carpeta para debug:"
+            aws s3 ls s3://$S3_BUCKET/bootstrap/wordpress/ || true
+            exit 1
+          }
 
-            cat <<EOF > .env.prod
-            ENV_FILE=.env.prod
-            RUNTIME_DIR=/opt/wordpress-runtime
-            MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
-            MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}
-            MYSQL_USER=${{ secrets.MYSQL_USER }}
-            MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}
-            SSL_EMAIL=${{ secrets.SSL_EMAIL }}
-            DOMAIN_NAME=${{ secrets.DOMAIN_NAME }}
-            WP_TABLE_PREFIX=wp_
-            WP_DEBUG=false
-            WP_HOME=https://${{ secrets.DOMAIN_NAME }}
-            WP_SITEURL=https://${{ secrets.DOMAIN_NAME }}
-            S3_BUCKET=$S3_BUCKET
-            S3_PATH_WP=$S3_WP
-            S3_PATH_DB=$S3_DB
-            AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
-            AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
-            AWS_REGION=${{ secrets.AWS_REGION }}
-            DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
-            EOF
+          # =========================
+          # 📝 GENERAR .env.prod
+          # =========================
+          echo "Generando .env.prod..."
 
-            echo "🔍 DEBUG DE RUTA FINAL (sin secretos):"
-            echo "Comando esperado: aws s3 cp s3://$S3_BUCKET/$S3_WP /tmp/wp-content.tar.gz"
+          cat <<EOF > .env.prod
+          ENV_FILE=.env.prod
+          RUNTIME_DIR=/opt/wordpress-runtime
+          MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
+          MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}
+          MYSQL_USER=${{ secrets.MYSQL_USER }}
+          MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}
+          SSL_EMAIL=${{ secrets.SSL_EMAIL }}
+          DOMAIN_NAME=${{ secrets.DOMAIN_NAME }}
+          WP_TABLE_PREFIX=wp_
+          WP_DEBUG=false
+          WP_HOME=https://${{ secrets.DOMAIN_NAME }}
+          WP_SITEURL=https://${{ secrets.DOMAIN_NAME }}
+          S3_BUCKET=$S3_BUCKET
+          S3_PATH_WP=$S3_WP
+          S3_PATH_DB=$S3_DB
+          AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION=${{ secrets.AWS_REGION }}
+          DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
+          EOF
 
-            # 4. Pull y Reinicio
-            echo "Pull imagen de Docker Hub..."
-            sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/wordpress-devops:latest
+          # =========================
+          # 🐳 DEPLOY
+          # =========================
+          echo "📥 Pull imagen..."
+          sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/wordpress-devops:latest
 
-            echo "🔍 Verificando que el dominio apunte a la IP actual..."
-            DOMAIN="gerardo-devops-wp.duckdns.org"
-            CURRENT_IP=$(curl -s http://checkip.amazonaws.com)
+          echo "🔄 Restart servicios..."
+          sudo make down ENV=prod || true
+          sudo make up-prod ENV=prod
 
-            # Un pequeño bucle de espera antes de lanzar Certbot
-            for i in {1..10}; do
-              DNS_IP=$(dig +short $DOMAIN | tail -n1)
-              if [ "$DNS_IP" = "$CURRENT_IP" ]; then
-                echo "✅ Dominio listo para Certbot."
-                break
-              fi
-              echo "⏳ El DNS aún apunta a $DNS_IP. Esperando..."
-              sleep 15
-            done
-
-            # Debug de rutas S3 (Para ver si hay barras dobles o espacios)
-            echo "🔍 DEBUG DE RUTA S3:"
-            echo "Bucket: [${{ secrets.S3_BUCKET }}]"
-            echo "Path WP: [${{ secrets.S3_PATH_WP }}]"
-            echo "Comando que se ejecutará: aws s3 cp s3://${{ secrets.S3_BUCKET }}/${{ secrets.S3_PATH_WP }} /tmp/wp-content.tar.gz"
-
-            echo "Restart servicios..."
-            sudo make down ENV=prod || true
-            sudo make up-prod ENV=prod
-
+          echo "=============================="
+          echo "✅ DEPLOY FINALIZADO"
+          echo "=============================="
