@@ -190,132 +190,132 @@ jobs:
 # =========================
 # 🚀 APP CD
 # =========================
-app-cd:
-  runs-on: ubuntu-latest
-  needs: [terraform-cd, app-ci]
-  if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/feature'
+  app-cd:
+    runs-on: ubuntu-latest
+    needs: [terraform-cd, app-ci]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/feature'
 
-  steps:
-    - name: Deploy via SSH usando IP dinámica
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ needs.terraform-cd.outputs.ec2_ip }}
-        username: ubuntu
-        key: ${{ secrets.EC2_SSH_KEY }}
-        port: 22
-        script: |
-          set -e
+    steps:
+      - name: Deploy via SSH usando IP dinámica
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ needs.terraform-cd.outputs.ec2_ip }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script: |
+            set -e
 
-          echo "=============================="
-          echo "🚀 INICIO DEPLOY"
-          echo "=============================="
+            echo "=============================="
+            echo "🚀 INICIO DEPLOY"
+            echo "=============================="
 
-          # =========================
-          # 🧠 DIAGNÓSTICO BÁSICO
-          # =========================
-          PUBLIC_IP=$(curl -s http://checkip.amazonaws.com)
-          echo "🌐 IP actual: $PUBLIC_IP"
+            # =========================
+            # 🧠 DIAGNÓSTICO BÁSICO
+            # =========================
+            PUBLIC_IP=$(curl -s http://checkip.amazonaws.com)
+            echo "🌐 IP actual: $PUBLIC_IP"
 
-          # =========================
-          # 🔧 ASEGURAR DEPENDENCIAS
-          # =========================
-          if ! command -v docker &> /dev/null; then
-            echo "🔧 Instalando Docker..."
-            sudo apt-get update && sudo apt-get install -y docker.io
-          fi
+            # =========================
+            # 🔧 ASEGURAR DEPENDENCIAS
+            # =========================
+            if ! command -v docker &> /dev/null; then
+              echo "🔧 Instalando Docker..."
+              sudo apt-get update && sudo apt-get install -y docker.io
+            fi
 
-          if ! command -v aws &> /dev/null; then
-            echo "🔧 Instalando AWS CLI..."
-            sudo apt-get update && sudo apt-get install -y awscli
-          fi
+            if ! command -v aws &> /dev/null; then
+              echo "🔧 Instalando AWS CLI..."
+              sudo apt-get update && sudo apt-get install -y awscli
+            fi
 
-          # =========================
-          # 📁 CLONAR / ACTUALIZAR REPO
-          # =========================
-          REPO_DIR="/home/ubuntu/projecto-devops/repo/wordpress-docker-devops"
-          REPO_URL="https://github.com/${{ github.repository }}.git"
+            # =========================
+            # 📁 CLONAR / ACTUALIZAR REPO
+            # =========================
+            REPO_DIR="/home/ubuntu/projecto-devops/repo/wordpress-docker-devops"
+            REPO_URL="https://github.com/${{ github.repository }}.git"
 
-          mkdir -p /home/ubuntu/projecto-devops/repo
+            mkdir -p /home/ubuntu/projecto-devops/repo
 
-          if [ ! -d "$REPO_DIR" ]; then
-            git clone "$REPO_URL" "$REPO_DIR"
-          fi
+            if [ ! -d "$REPO_DIR" ]; then
+              git clone "$REPO_URL" "$REPO_DIR"
+            fi
 
-          cd "$REPO_DIR"
-          git fetch origin
-          git reset --hard origin/main
+            cd "$REPO_DIR"
+            git fetch origin
+            git reset --hard origin/main
 
-          # =========================
-          # 🔐 LIMPIEZA DE VARIABLES (FIX REAL)
-          # =========================
-          clean_var() {
-            echo "$1" | tr -d '\r' | sed 's|^/||'
-          }
+            # =========================
+            # 🔐 LIMPIEZA DE VARIABLES (FIX REAL)
+            # =========================
+            clean_var() {
+              echo "$1" | tr -d '\r' | sed 's|^/||'
+            }
 
-          S3_BUCKET=$(clean_var "${{ secrets.S3_BUCKET }}")
-          S3_WP=$(clean_var "${{ secrets.S3_PATH_WP }}")
-          S3_DB=$(clean_var "${{ secrets.S3_PATH_DB }}")
+            S3_BUCKET=$(clean_var "${{ secrets.S3_BUCKET }}")
+            S3_WP=$(clean_var "${{ secrets.S3_PATH_WP }}")
+            S3_DB=$(clean_var "${{ secrets.S3_PATH_DB }}")
 
-          # =========================
-          # 🔍 DEBUG REAL (NO EL DE SECRETS)
-          # =========================
-          echo "=============================="
-          echo "🔍 DEBUG VARIABLES REALES"
-          echo "Bucket: [$S3_BUCKET]"
-          echo "Path WP: [$S3_WP]"
-          echo "Path DB: [$S3_DB]"
-          echo "Comando real:"
-          echo "aws s3 cp s3://$S3_BUCKET/$S3_WP /tmp/wp-content.tar.gz"
-          echo "=============================="
+            # =========================
+            # 🔍 DEBUG REAL (NO EL DE SECRETS)
+            # =========================
+            echo "=============================="
+            echo "🔍 DEBUG VARIABLES REALES"
+            echo "Bucket: [$S3_BUCKET]"
+            echo "Path WP: [$S3_WP]"
+            echo "Path DB: [$S3_DB]"
+            echo "Comando real:"
+            echo "aws s3 cp s3://$S3_BUCKET/$S3_WP /tmp/wp-content.tar.gz"
+            echo "=============================="
 
-          # =========================
-          # 🧪 TEST S3 (CLAVE)
-          # =========================
-          echo "🧪 Verificando existencia en S3..."
-          aws s3 ls s3://$S3_BUCKET/$S3_WP || {
-            echo "❌ ERROR: El archivo NO existe en S3"
-            echo "📂 Listando carpeta para debug:"
-            aws s3 ls s3://$S3_BUCKET/bootstrap/wordpress/ || true
-            exit 1
-          }
+            # =========================
+            # 🧪 TEST S3 (CLAVE)
+            # =========================
+            echo "🧪 Verificando existencia en S3..."
+            aws s3 ls s3://$S3_BUCKET/$S3_WP || {
+              echo "❌ ERROR: El archivo NO existe en S3"
+              echo "📂 Listando carpeta para debug:"
+              aws s3 ls s3://$S3_BUCKET/bootstrap/wordpress/ || true
+              exit 1
+            }
 
-          # =========================
-          # 📝 GENERAR .env.prod
-          # =========================
-          echo "Generando .env.prod..."
+            # =========================
+            # 📝 GENERAR .env.prod
+            # =========================
+            echo "Generando .env.prod..."
 
-          cat <<EOF > .env.prod
-          ENV_FILE=.env.prod
-          RUNTIME_DIR=/opt/wordpress-runtime
-          MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
-          MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}
-          MYSQL_USER=${{ secrets.MYSQL_USER }}
-          MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}
-          SSL_EMAIL=${{ secrets.SSL_EMAIL }}
-          DOMAIN_NAME=${{ secrets.DOMAIN_NAME }}
-          WP_TABLE_PREFIX=wp_
-          WP_DEBUG=false
-          WP_HOME=https://${{ secrets.DOMAIN_NAME }}
-          WP_SITEURL=https://${{ secrets.DOMAIN_NAME }}
-          S3_BUCKET=$S3_BUCKET
-          S3_PATH_WP=$S3_WP
-          S3_PATH_DB=$S3_DB
-          AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION=${{ secrets.AWS_REGION }}
-          DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
-          EOF
+            cat <<EOF > .env.prod
+            ENV_FILE=.env.prod
+            RUNTIME_DIR=/opt/wordpress-runtime
+            MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
+            MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}
+            MYSQL_USER=${{ secrets.MYSQL_USER }}
+            MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}
+            SSL_EMAIL=${{ secrets.SSL_EMAIL }}
+            DOMAIN_NAME=${{ secrets.DOMAIN_NAME }}
+            WP_TABLE_PREFIX=wp_
+            WP_DEBUG=false
+            WP_HOME=https://${{ secrets.DOMAIN_NAME }}
+            WP_SITEURL=https://${{ secrets.DOMAIN_NAME }}
+            S3_BUCKET=$S3_BUCKET
+            S3_PATH_WP=$S3_WP
+            S3_PATH_DB=$S3_DB
+            AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            AWS_REGION=${{ secrets.AWS_REGION }}
+            DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
+            EOF
 
-          # =========================
-          # 🐳 DEPLOY
-          # =========================
-          echo "📥 Pull imagen..."
-          sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/wordpress-devops:latest
+            # =========================
+            # 🐳 DEPLOY
+            # =========================
+            echo "📥 Pull imagen..."
+            sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/wordpress-devops:latest
 
-          echo "🔄 Restart servicios..."
-          sudo make down ENV=prod || true
-          sudo make up-prod ENV=prod
+            echo "🔄 Restart servicios..."
+            sudo make down ENV=prod || true
+            sudo make up-prod ENV=prod
 
-          echo "=============================="
-          echo "✅ DEPLOY FINALIZADO"
-          echo "=============================="
+            echo "=============================="
+            echo "✅ DEPLOY FINALIZADO"
+            echo "=============================="
