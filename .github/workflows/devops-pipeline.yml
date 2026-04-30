@@ -214,8 +214,10 @@ jobs:
 
             # --- DIAGNÓSTICO DE RED ---
             PUBLIC_IP=$(curl -s http://checkip.amazonaws.com)
-            DOMAIN="gerardo-devops-wp.duckdns.org"
-            DNS_RESOLVED=$(dig +short $DOMAIN | tail -n1)
+            FULL_DOMAIN="gerardo-devops-wp.duckdns.org" # Para el dig
+            SUB_DOMAIN="gerardo-devops-wp"             # Solo el nombre para la API
+            
+            DNS_RESOLVED=$(dig +short $FULL_DOMAIN | tail -n1)
 
             echo "🔍 DIAGNÓSTICO:"
             echo "Mi IP Pública real: $PUBLIC_IP"
@@ -223,13 +225,21 @@ jobs:
 
             if [ "$PUBLIC_IP" != "$DNS_RESOLVED" ]; then
               echo "❌ ERROR: DuckDNS no apunta a esta instancia."
-              echo "Intentando actualizar manualmente desde el pipeline..."
-              # Usamos el secreto que deberías tener en GitHub
-              UPDATE_RES=$(curl -s "https://www.duckdns.org/update?domains=gerardo-devops-wp&token=${{ secrets.DUCKDNS_TOKEN }}&ip=$PUBLIC_IP")
+              echo "Intentando actualizar manualmente..."
+              
+              # IMPORTANTE: El parámetro 'domains' NO lleva el .duckdns.org
+              UPDATE_RES=$(curl -s "https://www.duckdns.org/update?domains=$SUB_DOMAIN&token=${{ secrets.DUCKDNS_TOKEN }}&ip=$PUBLIC_IP")
+              
               echo "Respuesta de DuckDNS: $UPDATE_RES"
               
-              echo "Esperando 30 segundos para propagación..."
-              sleep 30
+              if [ "$UPDATE_RES" != "OK" ]; then
+                echo "🚨 Error crítico: DuckDNS rechazó la actualización (Token o Dominio inválidos)."
+                # No salimos con error aquí para intentar ver si el DNS se propaga igual, 
+                # pero ya sabemos que probablemente falle Certbot.
+              fi
+              
+              echo "Esperando 45 segundos para propagación..."
+              sleep 45
             else
               echo "✅ DNS sincronizado correctamente."
             fi
