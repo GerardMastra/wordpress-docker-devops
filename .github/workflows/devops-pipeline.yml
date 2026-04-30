@@ -273,7 +273,7 @@ jobs:
             
             # Función interna para limpiar variables
             clean_var() {
-              echo "$1" | tr -d '\r' | tr -d '[:space:]' | sed 's|^/||'
+              echo "$1" | tr -d '\r' | sed 's|^/||'
             }
 
             S3_BUCKET=$(clean_var "${{ secrets.S3_BUCKET }}")
