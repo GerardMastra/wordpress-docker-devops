@@ -316,6 +316,13 @@ jobs:
               sleep 15
             done
 
+            # Debug de rutas S3 (Para ver si hay barras dobles o espacios)
+            echo "🔍 DEBUG DE RUTA S3:"
+            echo "Bucket: [${{ secrets.S3_BUCKET }}]"
+            echo "Path WP: [${{ secrets.S3_PATH_WP }}]"
+            echo "Comando que se ejecutará: aws s3 cp s3://${{ secrets.S3_BUCKET }}/${{ secrets.S3_PATH_WP }} /tmp/wp-content.tar.gz"
+
             echo "Restart servicios..."
             sudo make down ENV=prod || true
             sudo make up-prod ENV=prod
+
