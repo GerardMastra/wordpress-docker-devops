@@ -2,11 +2,11 @@
 
 Diseño e implementación de una infraestructura resiliente, automatizada y de costo optimizado, transformando necesidades críticas de negocio en soluciones técnicas viables.
 
-## Versión: v3.0 – Automated Cloud Backup Engine & Disaster Recovery (Hito Único)
+## Versión: v4.0 – Full Observability Stack & Proactive Alerting Engine (Hito Mayor)
 
-Esta versión corona el **Proyecto 3** de la evolución de nuestra infraestructura, enfocándose de manera estricta en la **excelencia operativa, la resiliencia y la continuidad de negocio (Disaster Recovery)** según las buenas prácticas del AWS Well-Architected Framework.
+Esta versión representa la **cúspide de la madurez operativa y la excelencia en ingeniería** dentro de nuestro stack de infraestructura. Tras consolidar la inmutabilidad de los contenedores (v2.1) y la resiliencia ante desastres mediante backups automatizados (v3.0), este hito transforma el entorno en un ecosistema completamente transparente, medible y **capaz de auto-detectar anomalías en tiempo real** antes de que impacten al usuario final.
 
-Tras consolidar un pipeline inmutable de CI/CD (v2.1), este hito introduce una capa crítica de protección de datos: un **motor de respaldos cíclicos, automatizados y completamente desacoplados** hacia almacenamiento de objetos en **Amazon S3**. El sistema erradica la dependencia de ejecuciones manuales o scripts acoplados al sistema operativo del host, aislando las tareas de backup dentro de un microservicio dedicado que opera de manera desatendida y segura.
+Se introduce una arquitectura avanzada de observabilidad basada en el patrón de recolección por *pulling* (raspado de métricas). Centralizamos el motor de series temporales (**Prometheus**) y la capa de visualización avanzada (**Grafana**), conectándolos mediante redes lógicas internas hacia agentes de exportación especializados (**Node Exporter** y **MySQL Exporter**) e implementando un motor de alertas proactivas mediante consultas en **PromQL**.
 
 🌐 **URL pública (entorno demo):**
 <http://gerardo-devops-wp.duckdns.org>
@@ -15,113 +15,137 @@ Tras consolidar un pipeline inmutable de CI/CD (v2.1), este hito introduce una c
 
 ---
 
-## 🎯 Objetivo de la versión v3.0
+## 🎯 Objetivo de la versión v4.0
 
-> **Garantizar la supervivencia del negocio ante fallos catastróficos mediante la automatización de backups síncronos de la Base de Datos (MySQL) y archivos de aplicación (wp-content), orquestados por tareas cron internas en un contenedor independiente con persistencia directa en AWS S3.**
+> **Garantizar la visibilidad absoluta del stack de producción mediante la recolección centralizada de métricas de infraestructura (Host de AWS) y rendimiento de datos (MySQL), implementando dashboards profesionales y un sistema de alertas proactivas capaz de identificar cuellos de botella de hardware y caídas de servicio de forma inmediata.**
 
-El diseño se rige bajo el principio de aislamiento de fallos: si la capa web colapsa, el motor de backups permanece intacto, permitiendo un tiempo de recuperación (RTO) y un punto de recuperación (RPO) optimizados para entornos de producción reales.
+Esta implementación evita la administración "a ciegas" de servidores, simulando los flujos de monitoreo y la gestión de incidentes propios de arquitecturas corporativas distribuidas a gran escala.
 
 ---
 
 ## 🛠️ Stack tecnológico
 
 * **Cloud Infrastructure:** AWS Lightsail (Ubuntu Server)
-* **Almacenamiento Seguro (Destino de Backups):** Amazon S3 (Buckets con versionado y políticas de acceso restringido)
-* **Orquestación del Ecosistema:** Docker + Docker Compose
-* **Servicio de Respaldos:** Contenedor dedicado Alpine Linux (`crond` nativo + AWS CLI)
-* **Scripting Core:** Shell Scripting defensivo (Bash avanzado con control de estados)
-* **Runtime Stack:** WordPress (PHP-FPM 8.2 Alpine) + Nginx + MySQL 5.7
-* **Pipeline Base:** GitHub Actions (Integración y Despliegue Continuo)
+* **Motor de Series Temporales:** Prometheus (Estrategia de Service Discovery interna)
+* **Visualización y Alertas:** Grafana (Dashboards dinámicos + Alerting Engine)
+* **Agentes de Extracción (Data Exporters):** Node Exporter (Sistema de archivos del Host) + MySQL Server Exporter (Métricas de la BBDD)
+* **Runtime Stack:** WordPress (PHP-FPM 8.2 Alpine) + Nginx (Proxy Reverso) + MySQL 5.7
+* **Pipeline Base:** GitHub Actions (CI/CD Automatizado)
+* **Resiliencia:** Contenedor de Backups independiente hacia Amazon S3
+* **Orquestación:** Docker Compose + Makefile Avanzado + Redes Aisladas
 
 ---
 
-## 🏗️ Arquitectura de Resiliencia y Desacoplamiento
+## 🏗️ Arquitectura de Observabilidad y Redes Aisladas
 
-Para evitar la penalización de recursos y la fatiga de CPU sobre los contenedores que sirven tráfico a los usuarios, el sistema introduce el componente `backup-service`.
+El stack de monitoreo está diseñado para no contaminar ni exponer públicamente las métricas del negocio. Prometheus descubre y "raspa" los datos a través de una red interna dedicada de Docker, garantizando que solo el puerto seguro de Grafana (`:3000`) sea accesible si se requiere auditoría visual externa.
 
 ```text
-  [ wp-mysql ] ──( Red Interna Docker )──> [ backup-service ] ──> [ AWS S3 Bucket ]
-  (Base de Datos)                           (Cron + Scripts)         (Almacenamiento Objeto)
+  [ Host AWS / SO ] ──> [ Node Exporter ]  ──┐
+                                             ├──> [ Prometheus ] ──> [ Grafana ] (Puerto :3000)
+  [ Base de Datos ] ──> [ MySQL Exporter ] ──┘     (Métricas Core)        (Dashboards + Alertas)
 ```
 
-Tabla de Separación de Responsabilidades en Producción
+### Tabla de Separación de Responsabilidades Global
 
 | Componente | Responsabilidad | Origen / Ubicación |
 | :--- | :--- | :--- |
 | **Docker Image** | Lógica de la aplicación, binarios del core y dependencias runtime. | Docker Hub (Compilado en CI) |
 | **Amazon S3** | Persistencia a largo plazo de Dumps SQL y paquetes binarios `.tar.gz`. | Cloud S3 (Persistencia externa) |
 | **backup-service** | Ejecución de tareas programadas y empaquetado de estados en caliente. | Microservicio aislado (Docker Stack) |
+| **Prometheus / Grafana** | Recolección, almacenamiento temporal, modelado de datos y disparo de alertas. | Central de Monitoreo (Ecosistema Docker) |
+| **Exporters (Node & MySQL)** | Instrumentación del hardware del host de AWS y variables de hilos/queries. | Agentes livianos integrados en runtime |
 | **Volumen Host** | Fuente de verdad local acoplada al tiempo de ejecución de los contenedores. | `/opt/wordpress-runtime/` |
 
 ---
 
-## ⚙️ El Motor de Backup: Scripts y Automatización
+## ⚙️ Instrumentación y Recolección: Los Exporters
 
-El corazón del sistema de resiliencia reside en dos scripts optimizados inyectados dentro del volumen del contenedor de backups:
-
-1. `backup-db.sh`: Ejecuta de forma segura un comando `mysqldump` interceptando el motor MySQL a través de la red interna de Docker. Comprime el flujo de datos al vuelo usando `gzip` y le asigna un timestamp único para evitar colisiones.
-2. `backup-files.sh`: Realiza un empaquetado comprimido recursivo de la ruta del volumen local (`wp-content`), preservando la integridad de las imágenes, temas y plugins subidos por los usuarios.
-
-### 🛡️ Programación Desatendida (Cron Daemon)
-
-El contenedor de backups mantiene activo el demonio `crond`. De forma declarativa, se le inyecta una tabla de planificación (crontab) que ejecuta los scripts de forma automatizada bajo intervalos definidos en las variables de entorno productivas, realizando el transporte inmediato hacia AWS S3 con la directiva `aws s3 cp`.
+1. **Node Exporter**: Se despliega montando el sistema de archivos del host en modo lectura (`ro`). Captura en tiempo real métricas nativas de Linux: saturación de CPU, uso de memoria RAM latente, operaciones de Entrada/Salida de disco (IOPS) y tráfico de interfaces de red.
+2. **MySQL Server Exporter**: Se conecta al contenedor `wp-mysql` compartiendo una red lógica. Se configuró un usuario con privilegios mínimos de lectura dentro del motor de base de datos para extraer variables críticas de rendimiento sin comprometer la seguridad (Conexiones activas, hilos de ejecución abiertos, consultas por segundo y el estado de vida del motor `mysql_up`).
 
 ---
 
-### 🚀 Guía de Operación y Pruebas de Recuperación
+## 🚨 Ingeniería de Alertas y Consultas en PromQL
 
-### 🧪 1. Testing de Backups en Entorno Local
+Para transformar las métricas pasivas en un sistema de reacción proactivo, se definieron consultas en Prometheus Query Language (PromQL) encargadas de evaluar la salud del ecosistema:
 
-El sistema permite simular una ventana de mantenimiento y validar los scripts de respaldo de forma segura en tu máquina de desarrollo antes de subir los cambios:
+* **Saturación de CPU Alta**: Alerta disparada si la capacidad disponible cae por debajo de los umbrales de seguridad operativos durante más de 1 minuto:
+
+```Fragmento de código
+100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[1m])) * 100)
+```
+
+* **Agotamiento de RAM Crítico**: Monitorea de manera porcentual la memoria real disponible en la máquina virtual de AWS Lightsail:
+
+```Fragmento de código
+(node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100
+```
+
+* **Caída del Servicio de Datos (Liveness Alert)**: Evalúa la métrica booleana provista por el agente de base de datos. Si el valor es cero, significa que la base de datos colapsó, disparando una notificación inmediata:
+
+```Fragmento de código
+mysql_up == 0
+```
+
+---
+
+## 📊 Visualización Avanzada (Dashboards de Grafana)
+
+Conectamos Prometheus de forma estricta como Data Source nativo en Grafana. Para evitar ruido visual y sobrecarga de datos, implementamos y personalizamos tableros basados en estándares de la industria:
+
+* **Estado de Infraestructura (Linux Node)**: Basado en el estándar **ID 1860**, adaptado para reflejar de forma exacta los límites físicos del servidor cloud.
+* **Estado del Motor de Datos (MySQL)**: Basado en el estándar **ID 14057**, visualizando el comportamiento de las consultas y la estabilidad transaccional de WordPress.
+
+---
+
+## 🚀 Guía de Operación y Validación
+
+El proyecto mantiene la consistencia multi-entorno utilizando la capa de abstracción del Makefile.
+
+### 🧪 1. Validación en Entorno Local de Desarrollo
+
+Podés simular todo el ecosistema de monitoreo localmente para validar que Prometheus descubra los agentes de métricas correctamente:
 
 ```bash
 cp .env.example .env.local
-# Configurar llaves de AWS de testing local
+# Configurar llaves y secretos locales
 make up-local ENV=local
 
-# Entrar al contenedor de backups y forzar una ejecución manual de validación
-docker exec -it backup-service sh
-/scripts/backup-db.sh
-/scripts/backup-files.sh
+# Validaciones internas:
+# - Panel de Prometheus accesible en http://localhost:9090 (Verificar "Targets" en estado UP)
+# - Interfaz de Grafana accesible en http://localhost:3000
 ```
 
-### 🚨 2. Ejecución Manual de Emergencia en Producción
+### 🌍 2. Operación y Auditoría en Producción (AWS)
 
-Si antes de realizar un cambio crítico en caliente o una actualización de plugins necesitás forzar un backup manual directamente en la nube mediante SSH:
-
-```bash
-# Invoca de forma directa las tareas del Makefile orientadas al entorno de producción
-make backup-prod ENV=prod
-```
-
-### 🕒 3. Monitoreo de Tareas Automáticas
-
-Para auditar que el cron está despertando el contenedor de backups correctamente y que las transferencias a S3 no están devolviendo códigos de error:
+Toda la configuración se despliega de forma transparente a través de los flujos automatizados de Git. Si estás conectado al servidor y necesitás auditar el comportamiento de los contenedores de observabilidad:
 
 ```bash
-make logs ENV=prod | grep backup-service
+make ps ENV=prod         # Verifica que Prometheus, Grafana y los Exporters estén estables
+make logs ENV=prod       # Inspecciona la salida unificada ante problemas de red interna
 ```
 
 ---
 
 ## 🧠 Decisiones Técnicas Clave
 
-* **Scripting Defensivo** (`set -e`): Todos los scripts de automatización inician con la directiva `set -e`. Esto asegura que si el comando `mysqldump` falla por falta de conectividad o el comando `aws s3` falla por red, el proceso aborte inmediatamente, evitando la subida de archivos vacíos o corruptos que rompan la estrategia de Disaster Recovery.
-* **Principio de Mínimo Privilegio (Hardening de Accesos)**: El contenedor de backups no comparte permisos de root con el host y accede a MySQL utilizando el nombre de servicio interno de Docker (`mysql`), restringiendo la exposición de credenciales lógicas fuera del ecosistema.
-* **Región de AWS Estricta**: Se eliminó el uso de zonas de disponibilidad específicas (como `us-east-1a`) en los scripts de configuración del CLI de AWS, estandarizando sobre identificadores de región puros (`us-east-1`) para garantizar la compatibilidad universal del cliente S3.
+* **Mínimo Privilegio en Capa de Datos**: El agente de MySQL no se conecta como `root`. Utiliza un usuario exclusivo con permisos limitados de lectura de tablas de estado, mitigando el riesgo de inyección de código sobre el motor de persistencia.
+* **Service Discovery por DNS Interno**: En lugar de mapear IPs estáticas en el archivo `prometheus.yml`, se utilizó la resolución de nombres nativa de las redes de Docker (ej. `targets: ['node-exporter:9100', 'mysql-exporter:9104']`), logrando un entorno elástico y fácilmente escalable.
+* **Optimización de Recursos**: Tanto Prometheus como Grafana fueron configurados para controlar los tiempos de retención de datos en disco, evitando que las series temporales saturen el almacenamiento limitado de la instancia de AWS.
 
 ---
 
 ## 📌 Estado Actual de la Infraestructura Global
 
-✔ Pipeline CI/CD robusto con empaquetado inmutable en Docker Hub
-✔ Arquitectura desacoplada de código, secretos y almacenamiento
-✔ Contenedor independiente de Backups integrado de forma nativa en el Compose
-✔ Automatización desatendida mediante Cron funcional en producción
-✔ Estrategia defensiva de Disaster Recovery validada hacia Amazon S3
-✔ Ecosistema de infraestructura maduro y profesional listo para Portfolio DevOps
+✔ **Pipeline CI/CD robusto con empaquetado inmutable en Docker Hub (v2.1)**
+✔ **Estrategia defensiva de Disaster Recovery validada hacia Amazon S3 (v3.0)**
+✔ **Stack de Observabilidad completo e integrado nativamente al Compose (v4.0)**
+✔ **Extracción activa de métricas del Sistema Operativo y Base de Datos (Node & MySQL)**
+✔ **Reglas lógicas de alerta escritas en PromQL listas para producción (v4.0)**
+✔ **Ecosistema de infraestructura maduro, seguro, medible y validado para Portfolio DevOps****
 
-**Tag de Git definitivo**: `v3.0`
+**Tag de Git definitivo**: `v4.0`
 
 ---
 
