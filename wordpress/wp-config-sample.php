@@ -1,7 +1,4 @@
 <?php
-define( 'WP_CACHE', true );
-
-
 /**
  * The base configuration for WordPress
  *
@@ -34,10 +31,10 @@ define( 'DB_PASSWORD', getenv('WP_DB_PASSWORD') );
 /** MySQL hostname */
 define( 'DB_HOST', getenv('WP_DB_HOST') );
 
-/** Database Charset to use in creating database tables. */
+/** Database charset to use in creating database tables. */
 define( 'DB_CHARSET', 'utf8' );
 
-/** The Database Collate type. Don't change this if in doubt. */
+/** The database collate type. Don't change this if in doubt. */
 define( 'DB_COLLATE', '' );
 
 /**#@+
@@ -93,7 +90,7 @@ define( 'WP_DEBUG', false );
 /* Add any custom values between this line and the "stop editing" line. */
 
 
-define('DISALLOW_FILE_EDIT', true);
+
 /* That's all, stop editing! Happy publishing. */
 
 /** Absolute path to the WordPress directory. */

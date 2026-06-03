@@ -32,3 +32,16 @@ wordpress/mkt/*.php
 # WordPress wp-content (todo ignorado por defecto)
 # ------------------------
 wordpress/wp-content/
+
+# ------------------------
+# WordPress archivos temporales / runtime  (todo ignorado por defecto)
+# ------------------------
+wordpress/.htaccess
+wordpress/.htaccess.bk
+wordpress/license.txt
+wordpress/readme.html
+
+# ------------------------
+# Certbot / Let's Encrypt
+# ------------------------
+certbot/
