@@ -21,7 +21,8 @@ services:
       start_period: 30s
 
   php:
-    image: wordpress:php8.1-fpm
+    build: ./php
+    image: ${DOCKERHUB_USERNAME}/wordpress-devops:latest
     container_name: wp-php
     restart: unless-stopped
     env_file:
