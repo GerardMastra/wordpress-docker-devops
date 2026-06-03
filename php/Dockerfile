@@ -1,9 +1,11 @@
-FROM wordpress:php8.1-fpm
+FROM wordpress:php8.2-fpm-alpine
 
-# Instalar extensiones útiles
-RUN docker-php-ext-install mysqli
+RUN apk add --no-cache gettext bash
 
-# Healthcheck para WordPress
-HEALTHCHECK --interval=30s --timeout=5s --retries=5 CMD php-fpm -t || exit 1
+COPY wordpress/wp-config.php.template /usr/src/wordpress/wp-config.php.template
+COPY php/docker-entrypoint-custom.sh /usr/local/bin/docker-entrypoint-custom.sh
 
-WORKDIR /var/www/html
+RUN chmod +x /usr/local/bin/docker-entrypoint-custom.sh
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint-custom.sh"]
+CMD ["php-fpm"]

@@ -2,11 +2,11 @@
 
 Diseño e implementación de una infraestructura resiliente, automatizada y de costo optimizado, transformando necesidades críticas de negocio en soluciones técnicas viables.
 
-## Versión: v2.0 – Automated Remote Deployment (Línea Base de CD)
+## Versión: v2.1 – Enterprise CI/CD Pipeline & Immutable Core (Hito Mayor)
 
-Esta versión marca el inicio del **Proyecto 2** en la evolución del ecosistema de infraestructura. Tras consolidar la portabilidad multi-entorno y el desacoplamiento de datos (v1.2), el foco estratégico de este hito se traslada hacia la **automatización del ciclo de vida del software mediante prácticas de Despliegue Continuo (CD)**.
+Esta versión representa el **salto definitivo hacia los estándares corporativos** de alta disponibilidad e ingeniería de lanzamientos dentro del **Proyecto 2**. Tras establecer la línea base de transporte por SSH (v2.0), este hito remaqueta por completo el ciclo de vida del software bajo dos dogmas fundamentales de la cultura DevOps: **la inmutabilidad del artefacto y el desacoplamiento absoluto del estado de la aplicación**.
 
-Se introduce un pipeline de automatización que actúa como cordón umbilical entre el repositorio de código en GitHub y la instancia cloud en **AWS Lightsail**. Esto erradica los despliegues manuales imperativos por SSH, garantizando que el servidor de producción refleje el estado exacto de las ramas principales de forma automática, desatendida y segura.
+Se elimina por completo el proceso de compilación (`build`) dentro del host de producción, protegiendo los recursos limitados del servidor cloud (**AWS Lightsail**). En su lugar, se implementa un pipeline robusto de **Integración Continua (CI)** que empaqueta una imagen agnóstica, liviana y ultra-optimizada, delegando el aprovisionamiento de datos dinámicos a un flujo desatendida en *runtime* en caliente mediante **Amazon S3**.
 
 🌐 **URL pública (entorno demo):**
 <http://gerardo-devops-wp.duckdns.org>
@@ -15,138 +15,141 @@ Se introduce un pipeline de automatización que actúa como cordón umbilical en
 
 ---
 
-## 🎯 Objetivo de la versión v2.0
+## 🎯 Objetivo de la versión v2.1
 
-> **Incorporar automatización de CD mediante GitHub Actions para sincronizar el repositorio y rediseñar el ciclo de vida del stack con un esquema de despliegue remoto sin intervención manual.**
+> **Separar de forma estricta la etapa de compilación (CI) de la etapa de despliegue (CD), empaquetar imágenes inmutables en un Registry externo (Docker Hub) y orquestar un arranque dinámico donde el contenedor nace vacío y los datos se inyectan en caliente desde AWS S3.**
 
-Cada vez que se realiza un `git push` hacia las ramas protegidas (`main` o `dev`), el pipeline toma el control, valida la conectividad, actualiza el código fuente en el host remoto y orquesta la reconstrucción de los servicios de manera transparente.
+Esta arquitectura garantiza flujos de despliegue inmediatos, idempotentes y con tolerancia a fallos, simulando las dinámicas de escalabilidad horizontal de entornos corporativos de gran escala.
 
 ---
 
 ## 🛠️ Stack tecnológico
 
 * **Cloud Infrastructure:** AWS Lightsail (Ubuntu Server)
-* **Almacenamiento Objeto:** Amazon S3 (Persistencia delegada y Bootstrap)
-* **Orquestación local:** Docker + Docker Compose
-* **Pipeline de CD:** GitHub Actions (Runner gestionado)
-* **Conectividad Segura:** SSH sobre llaves criptográficas robustas
-* **Web Server & Reverse Proxy:** Nginx (Modo Read-Only)
-* **Runtime Stack:** WordPress (Imagen personalizada PHP-FPM 8.1) + MySQL 5.7
-* **Automatización Macro:** Makefile como interfaz operativa unificada
+* **Almacenamiento Objeto:** Amazon S3 (Bootstrap dinámico en caliente)
+* **Pipeline CI/CD:** GitHub Actions (Automated Runner)
+* **Image Registry:** Docker Hub (Versionado criptográfico)
+* **Web Server & Reverse Proxy:** Nginx (Configuraciones en modo Read-Only)
+* **Runtime Stack:** WordPress (Custom Image PHP-FPM 8.2 Alpine) + MySQL 5.7
+* **Orquestación y Automatización:** Docker Compose + Makefile Avanzado + `envsubst`
 
 ---
 
-## ⚙️ El Pipeline de CD (GitHub Actions)
+## 🧠 Principio Arquitectónico: El Artefacto Inmutable
 
-La automatización se gobierna de forma declarativa mediante el flujo configurado en `.github/workflows/deploy.yml`.
+El cambio paradigmático en esta versión responde a una regla estricta: **La imagen Docker NO contiene datos dinámicos (`wp-content` o Bases de Datos).**
 
-### 🔄 Flujo Completo del Workflow
+```text
+  [ CÓDIGO ESTÁTICO ] ──> GitHub Actions (CI) ──> Docker Hub (Imagen Inmutable v2.1)
+                                                                 │
+                                                                 ▼
+  [ DATOS DINÁMICOS ] ──> Amazon S3 ────────────> Instancia de AWS Lightsail (CD)
+```
 
-1. **Disparador (Trigger):** Eventos de `push` dirigidos a las ramas `main` o `dev`.
-2. **Autenticación SSH Segura:** El runner de GitHub inicializa un agente SSH consumiendo credenciales protegidas desde *GitHub Secrets*.
-3. **Sincronización de Código:** Conexión segura con el servidor remoto para ejecutar un flujo de actualización limpia del repositorio de infraestructura.
-4. **Rebuild e Inyección:** Orquestación remota para compilar cambios locales y refrescar los contenedores sin alterar los datos persistidos en el host.
-
----
-
-## 🏗️ Arquitectura de Servicios y Abstracción
-
-El sistema se mantiene fiel a la separación estricta entre **Código (Repo)** y **Datos (Runtime)** establecida previamente, permitiendo que el pipeline de CD destruya o recree los contenedores de manera segura.
-
-* **MySQL:** Inicializado con un `healthcheck` activo que bloquea los servicios dependientes hasta que el motor esté listo.
-* **PHP-FPM:** Consume la imagen personalizada (PHP 8.1) y arranca en cascada una vez que la base de datos está saludable.
-* **Nginx:** Actúa como Reverse Proxy perimetral seguro con volúmenes montados en modo lectura.
-* **Runtime Aislado:** Toda la persistencia real (base de datos y uploads) reside fuera de las rutas de Git, en `/opt/wordpress-runtime/`, lo que permite al pipeline de CD realizar actualizaciones de código con cero riesgo de pérdida de datos.
+| Componente | Responsabilidad | Origen / Ubicación |
+| :--- | :--- | :--- |
+| **Docker Image** | Lógica de la aplicación, binarios del core y dependencias runtime. | Docker Hub (Compilado en CI) |
+| **Amazon S3** | Datos mutables del negocio (uploads, themes, plugins y dumps SQL). | Cloud S3 (Persistencia persistente) |
+| **Volumen Host** | Fuente de verdad de datos persistidos acoplados al contenedor. | `/opt/wordpress-runtime/` |
 
 ---
 
-## 🚀 Guía de Despliegue y Operación
+## ⚙️ Pipeline CI/CD Avanzado (GitHub Actions)
 
-### 🧪 1. Preparación del Entorno Local (Desarrollo)
+El ciclo de vida está gobernado de forma declarativa desde `.github/workflows/deploy.yml`, segmentando con precisión matemática las responsabilidades de compilación y lanzamiento.
 
-Para levantar el entorno ágil de desarrollo local:
+### 🧪 1. Etapa de Integración Continua (CI) - Build & Push
+
+Cada `push` en las ramas principales (`main` o `dev`) activa un runner aislado de GitHub que ejecuta de forma segura:
+
+* **Checkout de Código:** Descarga la versión exacta del repositorio de infraestructura.
+* **Docker Registry Login:** Autenticación en Docker Hub consumiendo credenciales protegidas desde *GitHub Secrets*.
+* **Build Inmutable:** Compila la imagen personalizada basada en **PHP-FPM 8.2 Alpine** (minimizando la superficie de ataque y el peso de la imagen). El directorio mutable `wp-content` queda estrictamente excluido del build.
+* **Etiquetado y Push:** Publica la imagen en Docker Hub bajo la etiqueta `latest` combinada de forma concurrente con el **Commit SHA** de Git para garantizar trazabilidad absoluta en auditorías.
+
+### 🚀 2. Etapa de Despliegue Continuo (CD) - Pull & Run
+
+Garantizado el artefacto en el registro, la etapa de despliegue se conecta al servidor remoto vía SSH para ejecutar un flujo inmediato:
+
+* **Sincronización de Entorno:** Descarga las configuraciones del repositorio en la instancia cloud.
+* **Pull de la Imagen:** El servidor de producción realiza un `docker pull` de la imagen pre-compilada desde Docker Hub, evitando fatiga de CPU y caídas de servicio por falta de memoria RAM.
+* **Idempotencia:** Reinicia los servicios aplicando los contenedores de forma transparente.
+
+---
+
+## 🏗️ Arranque Dinámico y Entrypoint Personalizado
+
+Al nacer el contenedor de WordPress completamente agnóstico y vacío, se diseñó un ciclo de inicialización inteligente para la inyección de entorno:
+
+1. `docker-entrypoint-custom.sh`: Script interno inyectado en el contenedor que intercepta el arranque. Utiliza la utilidad `envsubst` para leer las variables de entorno de producción (`.env.prod`) y parsearlas sobre la plantilla `wp-config.php.template`, generando el archivo final seguro sin exponer secretos en texto plano.
+2. **Bootstrap dinámico en caliente** (`make restore-s3`): Durante la inicialización del deployment remoto, la automatización del Makefile invoca al CLI de AWS de forma desatendida, descarga los paquetes desde S3, los extrae sobre la ruta limpia del volumen (`/opt/wordpress-runtime/wordpress/`) y reasigna los permisos de sistema Unix (`33:33` para www-data de PHP y `999:999` para el motor de base de datos MySQL).
+
+---
+
+## 🚀 Guía de Operación e Invocación
+
+### 🧪 Despliegue en Entorno de Desarrollo Local
+
+Para iterar de forma ágil localmente utilizando el compose con overrides nativos:
 
 ```bash
 cp .env.example .env.local
-# Configurar las variables locales básicas en .env.local
+
+# Configurar secretos de entorno de desarrollo local
 make up-local ENV=local
 ```
 
-### ☁️ 2. Configuración Inicial del Entorno Productivo
+### 🌍 Flujo Productivo Automatizado (Uso Diario)
 
-Antes de activar el pipeline automático, la primera vez en el servidor remoto de AWS Lightsail se deben preparar las variables reales:
-
-```bash
-cp .env.example .env.prod
-# Configurar variables reales (Dominio, credenciales de S3, rutas de producción)
-```
-
-### 🎯 3. Activación del Despliegue Automático (Uso Diario)
-
-A partir de la configuración inicial, todo el ciclo de despliegue queda delegado al control de versiones.
-
-Para desplegar en el entorno deseado, simplemente ejecutá:
+Toda modificación sobre las reglas de infraestructura o el código base se despliega sin tocar el servidor de producción:
 
 ```bash
-# Para actualizar la infraestructura de desarrollo/QA
-git checkout dev
-git push origin dev
-
-# Para actualizar el entorno productivo principal
-git checkout main
+git add .
+git commit -m "feat: optimizar configuraciones del entrypoint dinámico"
 git push origin main
 ```
 
-El pipeline de GitHub Actions se encargará de forma remota de conectarse, sincronizar los archivos y ejecutar los comandos del Makefile en destino para realizar el redeploy del sistema.
+A partir de este comando, podés monitorear la pestaña de Actions en GitHub. El pipeline empaquetará la imagen en Docker Hub, se conectará de forma segura a AWS Lightsail, actualizará el stack y restaurará los datos persistentes desde S3 de forma 100% desatendida.
 
 ---
 
-## 🧰 Interfaz de Comandos Útiles (Makefile)
+## 🧰 Comandos del Makefile (Administración remota de emergencia)
 
-Tanto el administrador de forma manual (vía SSH) como el runner de GitHub de forma automatizada utilizan la misma sintaxis unificada gracias al flag de entorno `ENV`:
+Si necesitás interactuar con el stack de producción de forma manual ingresando por SSH, utilizá la interfaz estandarizada con el flag `ENV`:
 
 ```bash
-make up-local ENV=local     # Inicializa el entorno local de desarrollo
-make up-prod ENV=prod       # Fuerza el levantamiento del stack productivo en la nube
-make down ENV=prod          # Detiene los servicios y remueve las redes lógicas
-make logs ENV=prod          # Inspecciona la salida de logs unificados en producción
-make ps ENV=prod            # Muestra el estado de salud actual de los contenedores
+make up-prod ENV=prod       # Fuerza el levantamiento consumiendo imágenes remotas del Hub
+make down ENV=prod          # Apaga el ecosistema productivo removiendo redes lógicas
+make logs ENV=prod          # Inspecciona la salida de logs unificados de los contenedores
+make ps ENV=prod            # Verifica el estado de los Healthchecks y políticas de salud
+make restore-s3 ENV=prod    # Invoca manualmente el bootstrap en caliente desde S3
 ```
 
 ---
 
 ## 🧠 Decisiones Técnicas Clave
 
-* **Despliegue basado en Git (GitOps Mindset):** Se elimina la necesidad de acceder manualmente al servidor para aplicar parches o configuraciones de infraestructura. Git se convierte en la única fuente de verdad para el estado de los contenedores.
-* **Seguridad por Diseño (Secrets Hardening):** No existen llaves SSH, contraseñas de bases de datos ni tokens de AWS en el código. GitHub Actions consume estos valores en tiempo de ejecución de manera cifrada a través de variables de entorno protegidas.
-* **Automatización Controlada:** El proceso de bootstrap inicial (descarga de paquetes desde S3 e importación de la base de datos SQL) se mantiene administrado mediante comandos del Makefile para asegurar el control granular antes de delegar el empaquetado inmutable en registros externos.
+* **Principio de Inmutabilidad:** Los contenedores se comportan como infraestructura desechable. Si el servidor de producción se destruye por completo, el pipeline v2.1 puede reconstruir el servicio idéntico en un proveedor cloud diferente en cuestión de minutos.
+* **Uso exclusivo de S3 para Datos de Negocio:** La persistencia se desvincula por completo del código fuente, resolviendo de forma elegante el manejo de estados en aplicaciones que no nacieron nativas de la nube (Cloud-Native) como WordPress.
+* **Optimización de Recursos (Alpine Linux):** La migración de imágenes base a variantes Alpine redujo drásticamente los tiempos de descarga del pipeline en el CD y mitigó el consumo latente de memoria dentro del host cloud.
 
 ---
 
 ## 📌 Estado Actual del Proyecto
 
-✔ **Pipeline CI/CD con GitHub Actions completamente automatizado**
-✔ **Despliegue remoto desatendido vía SSH funcional**
-✔ **Seguridad robusta mediante la eliminación de secretos expuestos**
-✔ **Estructura multi-entorno (local vs prod) completamente integrada**
-✔ **Arquitectura limpia validada para Portfolio DevOps Junior**
+✔ Flujo CI/CD robusto Enterprise (Separación real de Build y Deploy)
+✔ Imágenes inmutables versionadas criptográficamente en Docker Hub
+✔ Cero procesos de compilación pesados en el servidor de producción
+✔ Entrypoint dinámico implementado con plantillas e inyección de variables
+✔ Bootstrap desatendido desde almacenamiento de objetos (Amazon S3)
+✔ Arquitectura avanzada consolidada para Portfolio DevOps de alto impacto
 
-**Tag de Git definitivo:** `v2.0`
-
----
-
-## 🔜 Siguiente Evolución Mayor (Hacia v2.1 – Enterprise CI/CD)
-
-Establecido el flujo de transporte automático de código, la siguiente fase de madurez técnica abordará los estándares corporativos de alta disponibilidad:
-
-* **Separación de CI y CD:** Eliminar el proceso de compilación (`build`) dentro de la instancia de AWS para optimizar el uso de CPU/RAM.
-* **Inmutabilidad en Registry:** Implementar un flujo de empaquetado para construir imágenes Docker personalizadas (basadas en Alpine) y publicarlas versionadas en **Docker Hub**.
-* **Runtime Dinámico:** Modificar el ciclo de arranque de los contenedores para que consuman variables de entorno al vuelo mediante un Entrypoint con `envsubst` y descarguen su bootstrap de S3 de forma 100% desatendida.
+**Tag de Git definitivo:** `v2.1`
 
 ---
 
 ## 👤 Autor
 
-Gerardo Angel Mastramico
+Gerardo Mastramico
 DevOps Junior
 GitHub: <https://github.com/GerardMastra>
