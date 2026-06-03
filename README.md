@@ -2,11 +2,11 @@
 
 Diseño e implementación de una infraestructura resiliente, automatizada y de costo optimizado, transformando necesidades críticas de negocio en soluciones técnicas viables.
 
-## Versión: v2.1 – Enterprise CI/CD Pipeline & Immutable Core (Hito Mayor)
+## Versión: v3.0 – Automated Cloud Backup Engine & Disaster Recovery (Hito Único)
 
-Esta versión representa el **salto definitivo hacia los estándares corporativos** de alta disponibilidad e ingeniería de lanzamientos dentro del **Proyecto 2**. Tras establecer la línea base de transporte por SSH (v2.0), este hito remaqueta por completo el ciclo de vida del software bajo dos dogmas fundamentales de la cultura DevOps: **la inmutabilidad del artefacto y el desacoplamiento absoluto del estado de la aplicación**.
+Esta versión corona el **Proyecto 3** de la evolución de nuestra infraestructura, enfocándose de manera estricta en la **excelencia operativa, la resiliencia y la continuidad de negocio (Disaster Recovery)** según las buenas prácticas del AWS Well-Architected Framework.
 
-Se elimina por completo el proceso de compilación (`build`) dentro del host de producción, protegiendo los recursos limitados del servidor cloud (**AWS Lightsail**). En su lugar, se implementa un pipeline robusto de **Integración Continua (CI)** que empaqueta una imagen agnóstica, liviana y ultra-optimizada, delegando el aprovisionamiento de datos dinámicos a un flujo desatendida en *runtime* en caliente mediante **Amazon S3**.
+Tras consolidar un pipeline inmutable de CI/CD (v2.1), este hito introduce una capa crítica de protección de datos: un **motor de respaldos cíclicos, automatizados y completamente desacoplados** hacia almacenamiento de objetos en **Amazon S3**. El sistema erradica la dependencia de ejecuciones manuales o scripts acoplados al sistema operativo del host, aislando las tareas de backup dentro de un microservicio dedicado que opera de manera desatendida y segura.
 
 🌐 **URL pública (entorno demo):**
 <http://gerardo-devops-wp.duckdns.org>
@@ -15,136 +15,113 @@ Se elimina por completo el proceso de compilación (`build`) dentro del host de 
 
 ---
 
-## 🎯 Objetivo de la versión v2.1
+## 🎯 Objetivo de la versión v3.0
 
-> **Separar de forma estricta la etapa de compilación (CI) de la etapa de despliegue (CD), empaquetar imágenes inmutables en un Registry externo (Docker Hub) y orquestar un arranque dinámico donde el contenedor nace vacío y los datos se inyectan en caliente desde AWS S3.**
+> **Garantizar la supervivencia del negocio ante fallos catastróficos mediante la automatización de backups síncronos de la Base de Datos (MySQL) y archivos de aplicación (wp-content), orquestados por tareas cron internas en un contenedor independiente con persistencia directa en AWS S3.**
 
-Esta arquitectura garantiza flujos de despliegue inmediatos, idempotentes y con tolerancia a fallos, simulando las dinámicas de escalabilidad horizontal de entornos corporativos de gran escala.
+El diseño se rige bajo el principio de aislamiento de fallos: si la capa web colapsa, el motor de backups permanece intacto, permitiendo un tiempo de recuperación (RTO) y un punto de recuperación (RPO) optimizados para entornos de producción reales.
 
 ---
 
 ## 🛠️ Stack tecnológico
 
 * **Cloud Infrastructure:** AWS Lightsail (Ubuntu Server)
-* **Almacenamiento Objeto:** Amazon S3 (Bootstrap dinámico en caliente)
-* **Pipeline CI/CD:** GitHub Actions (Automated Runner)
-* **Image Registry:** Docker Hub (Versionado criptográfico)
-* **Web Server & Reverse Proxy:** Nginx (Configuraciones en modo Read-Only)
-* **Runtime Stack:** WordPress (Custom Image PHP-FPM 8.2 Alpine) + MySQL 5.7
-* **Orquestación y Automatización:** Docker Compose + Makefile Avanzado + `envsubst`
+* **Almacenamiento Seguro (Destino de Backups):** Amazon S3 (Buckets con versionado y políticas de acceso restringido)
+* **Orquestación del Ecosistema:** Docker + Docker Compose
+* **Servicio de Respaldos:** Contenedor dedicado Alpine Linux (`crond` nativo + AWS CLI)
+* **Scripting Core:** Shell Scripting defensivo (Bash avanzado con control de estados)
+* **Runtime Stack:** WordPress (PHP-FPM 8.2 Alpine) + Nginx + MySQL 5.7
+* **Pipeline Base:** GitHub Actions (Integración y Despliegue Continuo)
 
 ---
 
-## 🧠 Principio Arquitectónico: El Artefacto Inmutable
+## 🏗️ Arquitectura de Resiliencia y Desacoplamiento
 
-El cambio paradigmático en esta versión responde a una regla estricta: **La imagen Docker NO contiene datos dinámicos (`wp-content` o Bases de Datos).**
+Para evitar la penalización de recursos y la fatiga de CPU sobre los contenedores que sirven tráfico a los usuarios, el sistema introduce el componente `backup-service`.
 
 ```text
-  [ CÓDIGO ESTÁTICO ] ──> GitHub Actions (CI) ──> Docker Hub (Imagen Inmutable v2.1)
-                                                                 │
-                                                                 ▼
-  [ DATOS DINÁMICOS ] ──> Amazon S3 ────────────> Instancia de AWS Lightsail (CD)
+  [ wp-mysql ] ──( Red Interna Docker )──> [ backup-service ] ──> [ AWS S3 Bucket ]
+  (Base de Datos)                           (Cron + Scripts)         (Almacenamiento Objeto)
 ```
+
+Tabla de Separación de Responsabilidades en Producción
 
 | Componente | Responsabilidad | Origen / Ubicación |
 | :--- | :--- | :--- |
 | **Docker Image** | Lógica de la aplicación, binarios del core y dependencias runtime. | Docker Hub (Compilado en CI) |
-| **Amazon S3** | Datos mutables del negocio (uploads, themes, plugins y dumps SQL). | Cloud S3 (Persistencia persistente) |
-| **Volumen Host** | Fuente de verdad de datos persistidos acoplados al contenedor. | `/opt/wordpress-runtime/` |
+| **Amazon S3** | Persistencia a largo plazo de Dumps SQL y paquetes binarios `.tar.gz`. | Cloud S3 (Persistencia externa) |
+| **backup-service** | Ejecución de tareas programadas y empaquetado de estados en caliente. | Microservicio aislado (Docker Stack) |
+| **Volumen Host** | Fuente de verdad local acoplada al tiempo de ejecución de los contenedores. | `/opt/wordpress-runtime/` |
 
 ---
 
-## ⚙️ Pipeline CI/CD Avanzado (GitHub Actions)
+## ⚙️ El Motor de Backup: Scripts y Automatización
 
-El ciclo de vida está gobernado de forma declarativa desde `.github/workflows/deploy.yml`, segmentando con precisión matemática las responsabilidades de compilación y lanzamiento.
+El corazón del sistema de resiliencia reside en dos scripts optimizados inyectados dentro del volumen del contenedor de backups:
 
-### 🧪 1. Etapa de Integración Continua (CI) - Build & Push
+1. `backup-db.sh`: Ejecuta de forma segura un comando `mysqldump` interceptando el motor MySQL a través de la red interna de Docker. Comprime el flujo de datos al vuelo usando `gzip` y le asigna un timestamp único para evitar colisiones.
+2. `backup-files.sh`: Realiza un empaquetado comprimido recursivo de la ruta del volumen local (`wp-content`), preservando la integridad de las imágenes, temas y plugins subidos por los usuarios.
 
-Cada `push` en las ramas principales (`main` o `dev`) activa un runner aislado de GitHub que ejecuta de forma segura:
+### 🛡️ Programación Desatendida (Cron Daemon)
 
-* **Checkout de Código:** Descarga la versión exacta del repositorio de infraestructura.
-* **Docker Registry Login:** Autenticación en Docker Hub consumiendo credenciales protegidas desde *GitHub Secrets*.
-* **Build Inmutable:** Compila la imagen personalizada basada en **PHP-FPM 8.2 Alpine** (minimizando la superficie de ataque y el peso de la imagen). El directorio mutable `wp-content` queda estrictamente excluido del build.
-* **Etiquetado y Push:** Publica la imagen en Docker Hub bajo la etiqueta `latest` combinada de forma concurrente con el **Commit SHA** de Git para garantizar trazabilidad absoluta en auditorías.
-
-### 🚀 2. Etapa de Despliegue Continuo (CD) - Pull & Run
-
-Garantizado el artefacto en el registro, la etapa de despliegue se conecta al servidor remoto vía SSH para ejecutar un flujo inmediato:
-
-* **Sincronización de Entorno:** Descarga las configuraciones del repositorio en la instancia cloud.
-* **Pull de la Imagen:** El servidor de producción realiza un `docker pull` de la imagen pre-compilada desde Docker Hub, evitando fatiga de CPU y caídas de servicio por falta de memoria RAM.
-* **Idempotencia:** Reinicia los servicios aplicando los contenedores de forma transparente.
+El contenedor de backups mantiene activo el demonio `crond`. De forma declarativa, se le inyecta una tabla de planificación (crontab) que ejecuta los scripts de forma automatizada bajo intervalos definidos en las variables de entorno productivas, realizando el transporte inmediato hacia AWS S3 con la directiva `aws s3 cp`.
 
 ---
 
-## 🏗️ Arranque Dinámico y Entrypoint Personalizado
+### 🚀 Guía de Operación y Pruebas de Recuperación
 
-Al nacer el contenedor de WordPress completamente agnóstico y vacío, se diseñó un ciclo de inicialización inteligente para la inyección de entorno:
+### 🧪 1. Testing de Backups en Entorno Local
 
-1. `docker-entrypoint-custom.sh`: Script interno inyectado en el contenedor que intercepta el arranque. Utiliza la utilidad `envsubst` para leer las variables de entorno de producción (`.env.prod`) y parsearlas sobre la plantilla `wp-config.php.template`, generando el archivo final seguro sin exponer secretos en texto plano.
-2. **Bootstrap dinámico en caliente** (`make restore-s3`): Durante la inicialización del deployment remoto, la automatización del Makefile invoca al CLI de AWS de forma desatendida, descarga los paquetes desde S3, los extrae sobre la ruta limpia del volumen (`/opt/wordpress-runtime/wordpress/`) y reasigna los permisos de sistema Unix (`33:33` para www-data de PHP y `999:999` para el motor de base de datos MySQL).
-
----
-
-## 🚀 Guía de Operación e Invocación
-
-### 🧪 Despliegue en Entorno de Desarrollo Local
-
-Para iterar de forma ágil localmente utilizando el compose con overrides nativos:
+El sistema permite simular una ventana de mantenimiento y validar los scripts de respaldo de forma segura en tu máquina de desarrollo antes de subir los cambios:
 
 ```bash
 cp .env.example .env.local
-
-# Configurar secretos de entorno de desarrollo local
+# Configurar llaves de AWS de testing local
 make up-local ENV=local
+
+# Entrar al contenedor de backups y forzar una ejecución manual de validación
+docker exec -it backup-service sh
+/scripts/backup-db.sh
+/scripts/backup-files.sh
 ```
 
-### 🌍 Flujo Productivo Automatizado (Uso Diario)
+### 🚨 2. Ejecución Manual de Emergencia en Producción
 
-Toda modificación sobre las reglas de infraestructura o el código base se despliega sin tocar el servidor de producción:
+Si antes de realizar un cambio crítico en caliente o una actualización de plugins necesitás forzar un backup manual directamente en la nube mediante SSH:
 
 ```bash
-git add .
-git commit -m "feat: optimizar configuraciones del entrypoint dinámico"
-git push origin main
+# Invoca de forma directa las tareas del Makefile orientadas al entorno de producción
+make backup-prod ENV=prod
 ```
 
-A partir de este comando, podés monitorear la pestaña de Actions en GitHub. El pipeline empaquetará la imagen en Docker Hub, se conectará de forma segura a AWS Lightsail, actualizará el stack y restaurará los datos persistentes desde S3 de forma 100% desatendida.
+### 🕒 3. Monitoreo de Tareas Automáticas
 
----
-
-## 🧰 Comandos del Makefile (Administración remota de emergencia)
-
-Si necesitás interactuar con el stack de producción de forma manual ingresando por SSH, utilizá la interfaz estandarizada con el flag `ENV`:
+Para auditar que el cron está despertando el contenedor de backups correctamente y que las transferencias a S3 no están devolviendo códigos de error:
 
 ```bash
-make up-prod ENV=prod       # Fuerza el levantamiento consumiendo imágenes remotas del Hub
-make down ENV=prod          # Apaga el ecosistema productivo removiendo redes lógicas
-make logs ENV=prod          # Inspecciona la salida de logs unificados de los contenedores
-make ps ENV=prod            # Verifica el estado de los Healthchecks y políticas de salud
-make restore-s3 ENV=prod    # Invoca manualmente el bootstrap en caliente desde S3
+make logs ENV=prod | grep backup-service
 ```
 
 ---
 
 ## 🧠 Decisiones Técnicas Clave
 
-* **Principio de Inmutabilidad:** Los contenedores se comportan como infraestructura desechable. Si el servidor de producción se destruye por completo, el pipeline v2.1 puede reconstruir el servicio idéntico en un proveedor cloud diferente en cuestión de minutos.
-* **Uso exclusivo de S3 para Datos de Negocio:** La persistencia se desvincula por completo del código fuente, resolviendo de forma elegante el manejo de estados en aplicaciones que no nacieron nativas de la nube (Cloud-Native) como WordPress.
-* **Optimización de Recursos (Alpine Linux):** La migración de imágenes base a variantes Alpine redujo drásticamente los tiempos de descarga del pipeline en el CD y mitigó el consumo latente de memoria dentro del host cloud.
+* **Scripting Defensivo** (`set -e`): Todos los scripts de automatización inician con la directiva `set -e`. Esto asegura que si el comando `mysqldump` falla por falta de conectividad o el comando `aws s3` falla por red, el proceso aborte inmediatamente, evitando la subida de archivos vacíos o corruptos que rompan la estrategia de Disaster Recovery.
+* **Principio de Mínimo Privilegio (Hardening de Accesos)**: El contenedor de backups no comparte permisos de root con el host y accede a MySQL utilizando el nombre de servicio interno de Docker (`mysql`), restringiendo la exposición de credenciales lógicas fuera del ecosistema.
+* **Región de AWS Estricta**: Se eliminó el uso de zonas de disponibilidad específicas (como `us-east-1a`) en los scripts de configuración del CLI de AWS, estandarizando sobre identificadores de región puros (`us-east-1`) para garantizar la compatibilidad universal del cliente S3.
 
 ---
 
-## 📌 Estado Actual del Proyecto
+## 📌 Estado Actual de la Infraestructura Global
 
-✔ Flujo CI/CD robusto Enterprise (Separación real de Build y Deploy)
-✔ Imágenes inmutables versionadas criptográficamente en Docker Hub
-✔ Cero procesos de compilación pesados en el servidor de producción
-✔ Entrypoint dinámico implementado con plantillas e inyección de variables
-✔ Bootstrap desatendido desde almacenamiento de objetos (Amazon S3)
-✔ Arquitectura avanzada consolidada para Portfolio DevOps de alto impacto
+✔ Pipeline CI/CD robusto con empaquetado inmutable en Docker Hub
+✔ Arquitectura desacoplada de código, secretos y almacenamiento
+✔ Contenedor independiente de Backups integrado de forma nativa en el Compose
+✔ Automatización desatendida mediante Cron funcional en producción
+✔ Estrategia defensiva de Disaster Recovery validada hacia Amazon S3
+✔ Ecosistema de infraestructura maduro y profesional listo para Portfolio DevOps
 
-**Tag de Git definitivo:** `v2.1`
+**Tag de Git definitivo**: `v3.0`
 
 ---
 
