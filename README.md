@@ -2,11 +2,11 @@
 
 Diseño e implementación de una infraestructura resiliente, automatizada y de costo optimizado, transformando necesidades críticas de negocio en soluciones técnicas viables.
 
-## Versión: v4.0 – Full Observability Stack & Proactive Alerting Engine (Hito Mayor)
+## Versión: v5.0 – Infrastructure as Code & Multi-Stage Orchestration (Cierre del Stack)
 
-Esta versión representa la **cúspide de la madurez operativa y la excelencia en ingeniería** dentro de nuestro stack de infraestructura. Tras consolidar la inmutabilidad de los contenedores (v2.1) y la resiliencia ante desastres mediante backups automatizados (v3.0), este hito transforma el entorno en un ecosistema completamente transparente, medible y **capaz de auto-detectar anomalías en tiempo real** antes de que impacten al usuario final.
+Esta versión representa la **cúspide evolutiva y la madurez absoluta de ingeniería** de todo nuestro ecosistema de infraestructura. Tras asegurar la inmutabilidad de la aplicación (v2.1), la resiliencia de datos (v3.0) y la observabilidad proactiva (v4.0), este hito rompe el último esquema manual: **el aprovisionamiento del propio hardware cloud**.
 
-Se introduce una arquitectura avanzada de observabilidad basada en el patrón de recolección por *pulling* (raspado de métricas). Centralizamos el motor de series temporales (**Prometheus**) y la capa de visualización avanzada (**Grafana**), conectándolos mediante redes lógicas internas hacia agentes de exportación especializados (**Node Exporter** y **MySQL Exporter**) e implementando un motor de alertas proactivas mediante consultas en **PromQL**.
+Se introduce la **Infraestructura como Código (IaC)** mediante **Terraform** para gobernar los recursos en **AWS** (Cómputo en **EC2**, almacenamiento de objetos en **S3** y configuraciones perimetrales de red). Todo el sistema se unifica bajo un pipeline **Multi-Stage en GitHub Actions** con dependencias lógicas estrictas: el código define el hardware, el pipeline lo aprovisiona de forma desatendida, extrae dinámicamente sus salidas lógicas (como la IP dinámica) e inyecta en caliente el despliegue de los contenedores mediante Docker Compose de extremo a extremo.
 
 🌐 **URL pública (entorno demo):**
 <http://gerardo-devops-wp.duckdns.org>
@@ -15,43 +15,47 @@ Se introduce una arquitectura avanzada de observabilidad basada en el patrón de
 
 ---
 
-## 🎯 Objetivo de la versión v4.0
+## 🎯 Objetivo de la versión v5.0
 
-> **Garantizar la visibilidad absoluta del stack de producción mediante la recolección centralizada de métricas de infraestructura (Host de AWS) y rendimiento de datos (MySQL), implementando dashboards profesionales y un sistema de alertas proactivas capaz de identificar cuellos de botella de hardware y caídas de servicio de forma inmediata.**
+> **Automatizar por completo el ciclo de vida de la infraestructura cloud mediante código declarativo (Terraform), integrando un pipeline multi-etapa que encadene secuencialmente la creación de hardware en AWS con la compilación y despliegue del stack contenerizado de forma 100% desatendida e idempotente.**
 
-Esta implementación evita la administración "a ciegas" de servidores, simulando los flujos de monitoreo y la gestión de incidentes propios de arquitecturas corporativas distribuidas a gran escala.
+Con esta implementación, la infraestructura y la aplicación se funden en un único flujo de valor continuo, erradicando los clics en consolas web y garantizando que todo el entorno de negocio sea reproducible desde cero en cuestión de minutos.
 
 ---
 
 ## 🛠️ Stack tecnológico
 
-* **Cloud Infrastructure:** AWS Lightsail (Ubuntu Server)
-* **Motor de Series Temporales:** Prometheus (Estrategia de Service Discovery interna)
-* **Visualización y Alertas:** Grafana (Dashboards dinámicos + Alerting Engine)
-* **Agentes de Extracción (Data Exporters):** Node Exporter (Sistema de archivos del Host) + MySQL Server Exporter (Métricas de la BBDD)
-* **Runtime Stack:** WordPress (PHP-FPM 8.2 Alpine) + Nginx (Proxy Reverso) + MySQL 5.7
-* **Pipeline Base:** GitHub Actions (CI/CD Automatizado)
-* **Resiliencia:** Contenedor de Backups independiente hacia Amazon S3
-* **Orquestación:** Docker Compose + Makefile Avanzado + Redes Aisladas
+* **Cloud Infrastructure & IaC:** AWS (EC2, S3, VPC, Security Groups) + Terraform Core
+* **Pipeline Multi-Stage:** GitHub Actions (Encadenamiento de Jobs con dependencias lógicas)
+* **Orquestación en Destino:** Docker + Docker Compose + Makefile Avanzado
+* **Runtime Stack:** WordPress (PHP-FPM 8.1 Alpine) + Nginx (Proxy Reverso) + MySQL 5.7
+* **Observabilidad Centralizada:** Prometheus + Grafana + Node Exporter + MySQL Exporter
+* **Mapeo Dinámico y Redes:** DuckDNS + Redes Lógicas Aisladas en Docker
+* **Resiliencia Operativa:** Contenedor de Backups automático e independiente hacia Amazon S3
+* **Seguridad y Secretos:** GitHub Secrets (Consumo cifrado en tiempo de ejecución)
 
 ---
 
-## 🏗️ Arquitectura de Observabilidad y Redes Aisladas
+## 🏗️ Arquitectura Global Desacoplada: Infraestructura vs Aplicación
 
-El stack de monitoreo está diseñado para no contaminar ni exponer públicamente las métricas del negocio. Prometheus descubre y "raspa" los datos a través de una red interna dedicada de Docker, garantizando que solo el puerto seguro de Grafana (`:3000`) sea accesible si se requiere auditoría visual externa.
+El repositorio adopta una separación estricta de responsabilidades. Terraform administra el ciclo de vida de los fierros (nube), mientras que Docker Compose gobierna el ciclo de vida del software (servicios). El puente de unión dinámico es el pipeline de CI/CD.
 
 ```text
-  [ Host AWS / SO ] ──> [ Node Exporter ]  ──┐
-                                             ├──> [ Prometheus ] ──> [ Grafana ] (Puerto :3000)
-  [ Base de Datos ] ──> [ MySQL Exporter ] ──┘     (Métricas Core)        (Dashboards + Alertas)
+  [ Código Git ] ──> GitHub Actions (Multi-Stage Job)
+                           │
+                           ├──> Stage 1: Terraform ──> Provisiona EC2 / S3 / Redes
+                           │                                      │ (Exporta IP Dinámica)
+                           ▼                                      ▼
+                           └──> Stage 2: CD Deploy ──> Docker Compose Pull & Run
 ```
 
-### Tabla de Separación de Responsabilidades Global
+### Tabla de Responsabilidades del Ecosistema Consolidado
 
 | Componente | Responsabilidad | Origen / Ubicación |
 | :--- | :--- | :--- |
+| **Capa de IaC (Terraform)** | Definición, creación y destrucción del hardware cloud de forma declarativa. | AWS Cloud (EC2, S3, Firewalls) |
 | **Docker Image** | Lógica de la aplicación, binarios del core y dependencias runtime. | Docker Hub (Compilado en CI) |
-| **Amazon S3** | Persistencia a largo plazo de Dumps SQL y paquetes binarios `.tar.gz`. | Cloud S3 (Persistencia externa) |
+| **Amazon S3** | Persistencia a largo plazo de Dumps SQL, paquetes binarios `.tar.gz` y assets. | Cloud S3 (Persistencia externa) |
 | **backup-service** | Ejecución de tareas programadas y empaquetado de estados en caliente. | Microservicio aislado (Docker Stack) |
 | **Prometheus / Grafana** | Recolección, almacenamiento temporal, modelado de datos y disparo de alertas. | Central de Monitoreo (Ecosistema Docker) |
 | **Exporters (Node & MySQL)** | Instrumentación del hardware del host de AWS y variables de hilos/queries. | Agentes livianos integrados en runtime |
@@ -59,98 +63,85 @@ El stack de monitoreo está diseñado para no contaminar ni exponer públicament
 
 ---
 
-## ⚙️ Instrumentación y Recolección: Los Exporters
+## ⚙️ Orquestación del Pipeline Multi-Stage (GitHub Actions)
 
-1. **Node Exporter**: Se despliega montando el sistema de archivos del host en modo lectura (`ro`). Captura en tiempo real métricas nativas de Linux: saturación de CPU, uso de memoria RAM latente, operaciones de Entrada/Salida de disco (IOPS) y tráfico de interfaces de red.
-2. **MySQL Server Exporter**: Se conecta al contenedor `wp-mysql` compartiendo una red lógica. Se configuró un usuario con privilegios mínimos de lectura dentro del motor de base de datos para extraer variables críticas de rendimiento sin comprometer la seguridad (Conexiones activas, hilos de ejecución abiertos, consultas por segundo y el estado de vida del motor `mysql_up`).
+El ciclo de vida del proyecto está gobernado de forma declarativa en `.github/workflows/deploy.yml`, segmentando el flujo en dos grandes trabajos (*Jobs*) interdependientes:
 
----
+### 📡 Job 1: Infraestructura como Código (IaC Stage)
 
-## 🚨 Ingeniería de Alertas y Consultas en PromQL
+* **Validación**: Ejecuta `terraform validate` y `terraform fmt` de forma automática para asegurar la calidad del código de infraestructura.
+* **Planificación y Aplicación**: Procesa el plan de ejecución y aplica los cambios en AWS consumiendo de forma cifrada las credenciales desde *GitHub Secrets*.
+* **Outputs Dinámicos**: Al finalizar el aprovisionamiento, exporta las variables críticas resultantes (como la IP pública de la instancia EC2 recién creada) hacia el siguiente Job del flujo.
 
-Para transformar las métricas pasivas en un sistema de reacción proactivo, se definieron consultas en Prometheus Query Language (PromQL) encargadas de evaluar la salud del ecosistema:
+### 🚀 Job 2: Despliegue de Aplicación (CD Stage - Dependiente)
 
-* **Saturación de CPU Alta**: Alerta disparada si la capacidad disponible cae por debajo de los umbrales de seguridad operativos durante más de 1 minuto:
+Utiliza la directiva `needs: [infra_job]`. Si la infraestructura es estable, este Job toma el control:
 
-```Fragmento de código
-100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[1m])) * 100)
-```
-
-* **Agotamiento de RAM Crítico**: Monitorea de manera porcentual la memoria real disponible en la máquina virtual de AWS Lightsail:
-
-```Fragmento de código
-(node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100
-```
-
-* **Caída del Servicio de Datos (Liveness Alert)**: Evalúa la métrica booleana provista por el agente de base de datos. Si el valor es cero, significa que la base de datos colapsó, disparando una notificación inmediata:
-
-```Fragmento de código
-mysql_up == 0
-```
+* **Conectividad Elástica**: Se conecta mediante SSH utilizando la IP dinámica recuperada del Stage anterior.
+* **Pull e Idempotencia**: Sincroniza las configuraciones del repositorio en el host, realiza un `docker compose pull` de las imágenes inmutables de Docker Hub y refresca el stack sin alterar los datos dinámicos ni la telemetría.
 
 ---
 
-## 📊 Visualización Avanzada (Dashboards de Grafana)
+## 🚨 Ingeniería de Alertas y Telemetría Integrada
 
-Conectamos Prometheus de forma estricta como Data Source nativo en Grafana. Para evitar ruido visual y sobrecarga de datos, implementamos y personalizamos tableros basados en estándares de la industria:
+La infraestructura aprovisionada por Terraform arranca de forma nativa el ecosistema de observabilidad (v4.0). Prometheus evalúa activamente reglas complejas escritas en **PromQL** para la detección proactiva de incidentes sobre el hardware creado:
 
-* **Estado de Infraestructura (Linux Node)**: Basado en el estándar **ID 1860**, adaptado para reflejar de forma exacta los límites físicos del servidor cloud.
-* **Estado del Motor de Datos (MySQL)**: Basado en el estándar **ID 14057**, visualizando el comportamiento de las consultas y la estabilidad transaccional de WordPress.
+* **Saturación de CPU Alta**: `100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[1m])) * 100)`
+* **Agotamiento de RAM Crítico**: `(node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100`
+* **Caída del Servicio de Datos**: `mysql_up == 0`
 
 ---
 
-## 🚀 Guía de Operación y Validación
+## 🚀 Guía de Operación e Invocación Local
 
-El proyecto mantiene la consistencia multi-entorno utilizando la capa de abstracción del Makefile.
-
-### 🧪 1. Validación en Entorno Local de Desarrollo
-
-Podés simular todo el ecosistema de monitoreo localmente para validar que Prometheus descubra los agentes de métricas correctamente:
+Toda la complejidad macro está abstraída detrás de comandos limpios del `Makefile`, permitiendo probar componentes de la aplicación localmente de forma ágil antes de empujarlos al flujo de Terraform en la nube:
 
 ```bash
 cp .env.example .env.local
-# Configurar llaves y secretos locales
+# Configurar llaves y secretos lógicos locales
 make up-local ENV=local
 
-# Validaciones internas:
-# - Panel de Prometheus accesible en http://localhost:9090 (Verificar "Targets" en estado UP)
-# - Interfaz de Grafana accesible en http://localhost:3000
+# Validaciones locales rápidas:
+# - WordPress funcional en http://localhost
+# - Grafana accesible en http://localhost:3000
 ```
 
-### 🌍 2. Operación y Auditoría en Producción (AWS)
+### 🌍 Flujo de Lanzamiento Productivo (Uso Diario)
 
-Toda la configuración se despliega de forma transparente a través de los flujos automatizados de Git. Si estás conectado al servidor y necesitás auditar el comportamiento de los contenedores de observabilidad:
+Para modificar cualquier parámetro de la aplicación, el monitoreo, o añadir recursos en la nube, el flujo se reduce exclusivamente al control de versiones:
 
 ```bash
-make ps ENV=prod         # Verifica que Prometheus, Grafana y los Exporters estén estables
-make logs ENV=prod       # Inspecciona la salida unificada ante problemas de red interna
+git add .
+git commit -m "infra: ajustar reglas del security group para habilitar puerto de monitoreo"
+git push origin main
 ```
+
+A partir de este comando, podés monitorear la ejecución en tiempo real desde la pestaña de Actions en GitHub, observando cómo se encadenan secuencialmente las etapas de infraestructura y código de aplicación.
 
 ---
 
 ## 🧠 Decisiones Técnicas Clave
 
-* **Mínimo Privilegio en Capa de Datos**: El agente de MySQL no se conecta como `root`. Utiliza un usuario exclusivo con permisos limitados de lectura de tablas de estado, mitigando el riesgo de inyección de código sobre el motor de persistencia.
-* **Service Discovery por DNS Interno**: En lugar de mapear IPs estáticas en el archivo `prometheus.yml`, se utilizó la resolución de nombres nativa de las redes de Docker (ej. `targets: ['node-exporter:9100', 'mysql-exporter:9104']`), logrando un entorno elástico y fácilmente escalable.
-* **Optimización de Recursos**: Tanto Prometheus como Grafana fueron configurados para controlar los tiempos de retención de datos en disco, evitando que las series temporales saturen el almacenamiento limitado de la instancia de AWS.
+* **Inmutabilidad de Red y State Hardening**: Los archivos de estado de Terraform (`.tfstate`) se gestionan bajo estrictas políticas de aislamiento y no se versionan en Git, asegurando que las credenciales de AWS permanezcan protegidas en tiempo de ejecución.
+* **Security Groups por Código**: Se bloquea por defecto todo el tráfico perimetral de la instancia EC2. Las reglas de firewall se declaran explícitamente en el código de Terraform, abriendo de forma restrictiva únicamente los puertos HTTP (`:80`), HTTPS (`:443`), Grafana (`:3000`) y SSH bajo llaves criptográficas robustas.
+* **Separación de Ciclos de Vida**: Si una actualización solo altera el código fuente de la aplicación (por ejemplo, un cambio estético en WordPress), el Stage 1 de Terraform detecta de forma inteligente que no hay cambios en el hardware de AWS, agilizando el pipeline y ejecutando directamente el CD sobre el host existente sin recrear la instancia.
 
 ---
 
-## 📌 Estado Actual de la Infraestructura Global
+## 📌 Estado de Cierre de la Infraestructura Global
 
-✔ **Pipeline CI/CD robusto con empaquetado inmutable en Docker Hub (v2.1)**
-✔ **Estrategia defensiva de Disaster Recovery validada hacia Amazon S3 (v3.0)**
-✔ **Stack de Observabilidad completo e integrado nativamente al Compose (v4.0)**
-✔ **Extracción activa de métricas del Sistema Operativo y Base de Datos (Node & MySQL)**
-✔ **Reglas lógicas de alerta escritas en PromQL listas para producción (v4.0)**
-✔ **Ecosistema de infraestructura maduro, seguro, medible y validado para Portfolio DevOps****
+✔ **Infraestructura como Código (IaC) completamente automatizada con Terraform**
+✔ **Pipeline CI/CD multi-stage de nivel enterprise integrado en GitHub Actions**
+✔ **Provisión y despliegue dinámico basado en IPs dinámicas exportadas en caliente**
+✔ **Imágenes inmutables versionadas criptográficamente en Docker Hub (v2.1)**
+✔ **Motor de backups desatendido con persistencia delegada en Amazon S3 (v3.0)**
+✔ **Stack de observabilidad y alertas proactivas en PromQL funcional (v4.0)**
+✔ **Ecosistema DevOps maduro, robusto, reproducible y documentado para Portfolio Global**
 
-**Tag de Git definitivo**: `v4.0`
+**Tag de Git definitivo**: `v5.0`
 
 ---
 
 ## 👤 Autor
 
-Gerardo Mastramico
-DevOps Junior
-GitHub: <https://github.com/GerardMastra>
+**Gerardo Angel Mastramico** DevOps Junior GitHub: <https://github.com/GerardMastra>

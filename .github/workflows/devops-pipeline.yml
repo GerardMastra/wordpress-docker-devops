@@ -1,0 +1,326 @@
+name: DevOps Pipeline (Terraform + App)
+
+on:
+  push:
+    branches: [ main, dev, feature ]
+  pull_request:
+
+env:
+  TF_VERSION: 1.6.6
+
+jobs:
+
+# =========================
+# 🧠 TERRAFORM CI
+# =========================
+  terraform-ci:
+    runs-on: ubuntu-latest
+
+    env:
+      TF_VAR_key_name: ${{ secrets.KEY_NAME }}
+
+    defaults:
+      run:
+        working-directory: terraform
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Format
+        run: terraform fmt -check
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: terraform plan -input=false
+
+# =========================
+# 🚀 TERRAFORM CD
+# =========================
+  terraform-cd:
+    runs-on: ubuntu-latest
+
+    env:
+      TF_VAR_key_name: ${{ secrets.KEY_NAME }}
+
+    needs: terraform-ci
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/feature'
+
+    outputs:
+      ec2_ip: ${{ steps.tf_output.outputs.ec2_ip }}
+
+    defaults:
+      run:
+        working-directory: terraform
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
+
+      - name: Export EC2 IP
+        id: tf_output
+        run: |
+          # 1. Capturamos la salida cruda
+          RAW_OUTPUT=$(terraform output -no-color -raw instance_public_ip 2>/dev/null)
+          
+          # 2. Usamos grep con una expresión regular para extraer SOLO la IP (bloque de números y puntos)
+          # Esto descartará cualquier palabra como "Warning" o caracteres como "│"
+          CLEAN_IP=$(echo "$RAW_OUTPUT" | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -n 1)
+
+          if [ -z "$CLEAN_IP" ]; then
+            echo "❌ Error: No se pudo extraer una IP válida de la salida de Terraform."
+            echo "Salida recibida: $RAW_OUTPUT"
+            exit 1
+          fi
+
+          echo "IP filtrada con éxito: $CLEAN_IP"
+          echo "ec2_ip=$CLEAN_IP" >> $GITHUB_OUTPUT
+
+      - name: Debug EC2 IP
+        run: |
+          # Cambiamos needs por steps
+          echo "IP = [${{ steps.tf_output.outputs.ec2_ip }}]"
+
+      - name: Wait Bootstrap to finish
+        run: |
+          IP="${{ steps.tf_output.outputs.ec2_ip }}"
+          echo "Esperando a que el bootstrap en $IP finalice..."
+
+          if [ -z "$IP" ]; then
+            echo "Error: La IP de la EC2 está vacía."
+            exit 1
+          fi
+
+          # Guardamos la llave SSH en un archivo temporal para el chequeo
+          echo "${{ secrets.EC2_SSH_KEY }}" > private_key.pem
+          chmod 600 private_key.pem
+
+          # Reintentar por 10 minutos (60 veces * 10 seg)
+          for i in {1..60}; do
+            # 1. Verificar si el puerto 22 está abierto
+            if nc -z -w 5 "$IP" 22; then
+              # 2. Verificar si el archivo de señal existe en la EC2
+              if ssh -i private_key.pem -o StrictHostKeyChecking=no ubuntu@$IP "test -f /var/log/bootstrap_finished"; then
+                echo "✅ Bootstrap finalizado y Docker listo."
+                rm private_key.pem
+                exit 0
+              fi
+              echo "Intento $i: SSH activo pero el bootstrap sigue trabajando..."
+            else
+              echo "Intento $i: SSH aún no responde..."
+            fi
+            sleep 10
+          done
+
+          echo "❌ Timeout: El bootstrap no terminó en 10 minutos."
+          rm private_key.pem
+          exit 1
+
+# =========================
+# 🐳 APP CI (tu parte actual)
+# =========================
+  app-ci:
+    runs-on: ubuntu-latest
+    needs: terraform-ci
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Download assets from S3
+        env:
+          MY_S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          MY_S3_PATH: ${{ secrets.S3_PATH_WP }}
+        run: |
+          if ! aws s3 cp s3://$MY_S3_BUCKET/$MY_S3_PATH ./php/wp-content.tar.gz; then
+            echo "Error descargando S3"
+            exit 1
+          fi
+          # aws s3 cp s3://gerardo-devops-wp/bootstrap/wordpress/wp-content.tar.gz ./php/wp-content.tar.gz
+          cd php && tar -xzf wp-content.tar.gz && rm wp-content.tar.gz
+
+      - name: Login Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build & Push
+        run: |
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/wordpress-devops:latest -f ./php/Dockerfile .
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/wordpress-devops:latest
+
+# =========================
+# 🚀 APP CD
+# =========================
+  app-cd:
+    runs-on: ubuntu-latest
+    needs: [terraform-cd, app-ci]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/feature'
+
+    steps:
+      - name: Deploy via SSH usando IP dinámica
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ needs.terraform-cd.outputs.ec2_ip }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script: |
+            set -e
+
+            echo "=============================="
+            echo "🚀 INICIO DEPLOY"
+            echo "=============================="
+
+            # =========================
+            # 🧠 DIAGNÓSTICO BÁSICO
+            # =========================
+            PUBLIC_IP=$(curl -s http://checkip.amazonaws.com)
+            echo "🌐 IP actual: $PUBLIC_IP"
+
+            # =========================
+            # 🔧 ASEGURAR DEPENDENCIAS
+            # =========================
+            if ! command -v docker &> /dev/null; then
+              echo "🔧 Instalando Docker..."
+              sudo apt-get update && sudo apt-get install -y docker.io
+            fi
+
+            if ! command -v aws &> /dev/null; then
+              echo "🔧 Instalando AWS CLI..."
+              sudo apt-get update && sudo apt-get install -y awscli
+            fi
+
+            # =========================
+            # 📁 CLONAR / ACTUALIZAR REPO
+            # =========================
+            REPO_DIR="/home/ubuntu/projecto-devops/repo/wordpress-docker-devops"
+            REPO_URL="https://github.com/${{ github.repository }}.git"
+
+            mkdir -p /home/ubuntu/projecto-devops/repo
+
+            if [ ! -d "$REPO_DIR" ]; then
+              git clone "$REPO_URL" "$REPO_DIR"
+            fi
+
+            cd "$REPO_DIR"
+            git fetch origin
+            git reset --hard origin/main
+
+            # =========================
+            # 🔐 LIMPIEZA DE VARIABLES (FIX REAL)
+            # =========================
+            clean_var() {
+              echo "$1" | tr -d '\r' | sed 's|^/||'
+            }
+
+            S3_BUCKET=$(clean_var "${{ secrets.S3_BUCKET }}")
+            S3_WP=$(clean_var "${{ secrets.S3_PATH_WP }}")
+            S3_DB=$(clean_var "${{ secrets.S3_PATH_DB }}")
+
+            # =========================
+            # 🔍 DEBUG REAL (NO EL DE SECRETS)
+            # =========================
+            echo "=============================="
+            echo "🔍 DEBUG VARIABLES REALES"
+            echo "Bucket: [$S3_BUCKET]"
+            echo "Path WP: [$S3_WP]"
+            echo "Path DB: [$S3_DB]"
+            echo "Comando real:"
+            echo "aws s3 cp s3://$S3_BUCKET/$S3_WP /tmp/wp-content.tar.gz"
+            echo "=============================="
+
+            # =========================
+            # 🧪 TEST S3 (CLAVE)
+            # =========================
+            echo "🔐 Configurando credenciales AWS..."
+            export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+            export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            export AWS_DEFAULT_REGION=${{ secrets.AWS_REGION }}
+
+            echo "🧪 Verificando existencia en S3..."
+            aws s3 ls s3://$S3_BUCKET/$S3_WP || {
+              echo "❌ ERROR: El archivo NO existe en S3"
+              echo "📂 Listando carpeta para debug:"
+              aws s3 ls s3://$S3_BUCKET/bootstrap/wordpress/ || true
+              exit 1
+            }
+
+            # =========================
+            # 📝 GENERAR .env.prod
+            # =========================
+            echo "Generando .env.prod..."
+
+            cat <<EOF > .env.prod
+            ENV_FILE=.env.prod
+            RUNTIME_DIR=/opt/wordpress-runtime
+            MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
+            MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}
+            MYSQL_USER=${{ secrets.MYSQL_USER }}
+            MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}
+            SSL_EMAIL=${{ secrets.SSL_EMAIL }}
+            DOMAIN_NAME=${{ secrets.DOMAIN_NAME }}
+            WP_TABLE_PREFIX=wp_
+            WP_DEBUG=false
+            WP_HOME=https://${{ secrets.DOMAIN_NAME }}
+            WP_SITEURL=https://${{ secrets.DOMAIN_NAME }}
+            S3_BUCKET=$S3_BUCKET
+            S3_PATH_WP=$S3_WP
+            S3_PATH_DB=$S3_DB
+            AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            AWS_REGION=${{ secrets.AWS_REGION }}
+            DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
+            EOF
+
+            # =========================
+            # 🐳 DEPLOY
+            # =========================
+            echo "📥 Pull imagen..."
+            sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/wordpress-devops:latest
+
+            echo "🔄 Restart servicios..."
+            sudo make down ENV=prod || true
+            sudo make up-prod ENV=prod
+
+            echo "=============================="
+            echo "✅ DEPLOY FINALIZADO"
+            echo "=============================="

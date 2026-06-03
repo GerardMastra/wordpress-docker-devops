@@ -4,7 +4,12 @@
 
 ENV ?= local
 ENV_FILE := .env.$(ENV)
-COMPOSE_FILES := -f docker-compose.yml -f docker-compose.$(ENV).yml -f docker-compose.backup-test.yml
+COMPOSE_FILES := -f docker-compose.yml -f docker-compose.$(ENV).yml
+
+# Si el entorno es local, le agregamos el archivo de backup-test
+ifeq ($(ENV), local)
+    COMPOSE_FILES += -f docker-compose.backup-test.yml
+endif
 
 DC := docker compose --env-file $(ENV_FILE) $(COMPOSE_FILES)
 

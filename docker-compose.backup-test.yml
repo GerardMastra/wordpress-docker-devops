@@ -5,7 +5,7 @@ services:
     depends_on:
       - mysql
     volumes:
-      - wordpress_data:/var/www/html/wp-content
+      - ${RUNTIME_DIR}/wordpress/wp-content:/var/www/html/wp-content
       - backup_data:/backup
     networks:
       - wp-network
