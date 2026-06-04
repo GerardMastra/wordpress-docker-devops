@@ -132,15 +132,24 @@ A partir de este comando, podés monitorear la ejecución en tiempo real desde l
 
 ## 📌 Estado de Cierre de la Infraestructura Global
 
-✔ **Infraestructura como Código (IaC) completamente automatizada con Terraform**
-✔ **Pipeline CI/CD multi-stage de nivel enterprise integrado en GitHub Actions**
-✔ **Provisión y despliegue dinámico basado en IPs dinámicas exportadas en caliente**
-✔ **Imágenes inmutables versionadas criptográficamente en Docker Hub (v2.1)**
-✔ **Motor de backups desatendido con persistencia delegada en Amazon S3 (v3.0)**
-✔ **Stack de observabilidad y alertas proactivas en PromQL funcional (v4.0)**
-✔ **Ecosistema DevOps maduro, robusto, reproducible y documentado para Portfolio Global**
+* ✔ **Infraestructura como Código (IaC) completamente automatizada con Terraform**
+* ✔ **Pipeline CI/CD multi-stage de nivel enterprise integrado en GitHub Actions**
+* ✔ **Provisión y despliegue dinámico basado en IPs dinámicas exportadas en caliente**
+* ✔ **Imágenes inmutables versionadas criptográficamente en Docker Hub (v2.1)**
+* ✔ **Motor de backups desatendido con persistencia delegada en Amazon S3 (v3.0)**
+* ✔ **Stack de observabilidad y alertas proactivas en PromQL funcional (v4.0)**
+* ✔ **Ecosistema DevOps maduro, robusto, reproducible y documentado para Portfolio Global**
 
 **Tag de Git definitivo**: `v5.0`
+
+---
+
+## 📚 Historial y Decisiones de Arquitectura
+
+Para consultar el proceso evolutivo de este proyecto a lo largo de sus 5 fases, los diagramas de las versiones anteriores y el registro formal de las decisiones tecnológicas tomadas (ADRs), visitá el directorio dedicado:
+
+* 📖 **[Documentación Histórica y Storytelling](./my-project/STORY-TELLING.md)**
+* ⚖️  **[Registros de Decisión de Arquitectura (ADRs)](./my-project/adr/)**
 
 ---
 
